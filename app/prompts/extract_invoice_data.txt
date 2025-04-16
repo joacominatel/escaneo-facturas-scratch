@@ -1,15 +1,31 @@
-Extraé los datos estructurados de la siguiente factura escaneada. Devolvé la información en JSON con las siguientes claves:
+Extraé los datos estructurados de la siguiente factura escaneada. Devolvé la información en formato JSON con las siguientes claves:
 
 - invoice_number
 - amount_total
 - date
 - bill_to
-- items: [ { description, quantity, unit_price, amount } ]
+- items: [
+    {
+      description: string,
+      quantity: number | null,
+      unit_price: number | null,
+      amount: number | null,
+      advertising_numbers: [OPxxxxx] // extraé todos los números de operación que comiencen con "OP"
+    }
+  ]
 - currency
 - payment_terms
-- operation_codes: [ { code, amount } ]
+- operation_codes: [ { code: string, amount: number } ] // si los hay, puede superponerse con advertising_numbers
 
-No inventes nada. Solo devolvé lo que veas con claridad. Si falta información, ponelo como null o array vacío.
+Instrucciones importantes:
+
+- **Advertising Numbers (OP numbers)**: Extraé cualquier número de operación que comience con "OP", incluyendo aquellos que estén pegados entre sí con "_" o "-", por ejemplo:
+  - "OP123456" es un OP válido.
+  - "OP123456_78901" significa dos OPs: "OP123456" y "OP78901".
+- Si un ítem no tiene ningún OP, omití completamente el campo `advertising_numbers` para ese ítem.
+- No inventes nada. Solo devolvé lo que veas claramente. Si falta información, ponelo como null o array vacío.
+- El texto OCR puede tener errores. Usá tu criterio para limpiar descripciones sin modificar el sentido.
+- No incluyas el texto original ni el resumen. Solo devolvé el JSON final.
 
 Texto OCR:
 """
