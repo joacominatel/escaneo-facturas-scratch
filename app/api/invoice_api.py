@@ -5,6 +5,7 @@ from app.utils.file_extractor import extract_pdfs_from_zip
 import os
 from werkzeug.utils import secure_filename
 from tempfile import mkdtemp
+from app.services.openai_service import OpenAIService
 import shutil
 
 invoice_bp = Blueprint('invoice_bp', __name__)
@@ -19,6 +20,7 @@ class InvoiceOCRAPI(MethodView):
 
         files = request.files.getlist("file")
         extracted_paths = []
+        openai_service = OpenAIService()
 
         tmp_dir = mkdtemp(dir=UPLOAD_FOLDER)
 
@@ -40,10 +42,13 @@ class InvoiceOCRAPI(MethodView):
             # Procesar todos los PDFs encontrados
             results = []
             for path in extracted_paths:
-                text = ocr_service.extract_text_from_pdf(path)
+                ocr_text = ocr_service.extract_text_from_pdf(path)
+                summary = openai_service.summarize_invoice_text(ocr_text)
+
                 results.append({
                     "filename": os.path.basename(path),
-                    "text": text
+                    "summary": summary,
+                    "raw_text": ocr_text
                 })
 
             return jsonify(results), 200
