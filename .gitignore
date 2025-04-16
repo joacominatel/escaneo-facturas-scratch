@@ -1,0 +1,9 @@
+# environment
+venv/
+.env*
+!.env.example
+
+# Python binaries
+*.pyc
+__pycache__/
+*.pyo
