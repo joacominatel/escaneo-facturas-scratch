@@ -8,6 +8,10 @@ from tempfile import mkdtemp
 from app.services.openai_service import OpenAIService
 import shutil
 
+from app.models.invoice import Invoice
+from app.models.invoice_log import InvoiceLog
+from app.core.extensions import db
+
 invoice_bp = Blueprint('invoice_bp', __name__)
 ocr_service = OCRService(lang="spa")
 UPLOAD_FOLDER = "uploads/"
@@ -45,8 +49,20 @@ class InvoiceOCRAPI(MethodView):
                 ocr_text = ocr_service.extract_text_from_pdf(path)
                 summary = openai_service.summarize_invoice_text(ocr_text)
 
+                # Crear y guardar factura
+                invoice = Invoice(filename=os.path.basename(path), status="waiting_validation")
+                db.session.add(invoice)
+                db.session.commit()
+
+                # Log del OCR
+                log_ocr = InvoiceLog(invoice_id=invoice.id, event="ocr_extracted", details=ocr_text)
+                log_summary = InvoiceLog(invoice_id=invoice.id, event="summary_created", details=summary)
+                db.session.add_all([log_ocr, log_summary])
+                db.session.commit()
+
                 results.append({
-                    "filename": os.path.basename(path),
+                    "invoice_id": invoice.id,
+                    "filename": invoice.filename,
                     "summary": summary,
                     "raw_text": ocr_text
                 })
