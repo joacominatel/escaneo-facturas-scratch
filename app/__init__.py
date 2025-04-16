@@ -12,6 +12,7 @@ def create_app():
 
     # Importar modelos aquí para que Flask-Migrate los detecte
     from app.models import Invoice
+    from app.models import InvoiceLog
 
     # Registrar Blueprints
     app.register_blueprint(invoice_bp, url_prefix='/api/invoices')
