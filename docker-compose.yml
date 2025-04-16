@@ -1,0 +1,68 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: flask_backend
+    restart: always
+    ports:
+      - "8010:8010"
+    env_file:
+      - .env
+    depends_on:
+      - mariadb
+      - redis
+    volumes:
+      - .:/app
+    networks:
+      - backend_net
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: docker/celery.Dockerfile
+    container_name: celery_worker
+    restart: always
+    depends_on:
+      - backend
+      - redis
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    networks:
+      - backend_net
+
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Root
+      MYSQL_DATABASE: invoices
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - backend_net
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend_net
+
+volumes:
+  mariadb_data:
+  redis_data:
+
+networks:
+  backend_net:
