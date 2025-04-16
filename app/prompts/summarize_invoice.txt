@@ -1,0 +1,8 @@
+Extraé un resumen entendible para humanos del siguiente texto proveniente de una factura escaneada.
+El objetivo es que un usuario valide visualmente el contenido extraído antes de procesarlo en profundidad.
+No inventes nada. Si hay errores, mostralos.
+
+Texto OCR:
+"""
+{raw_text}
+"""

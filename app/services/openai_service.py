@@ -12,18 +12,13 @@ class OpenAIService:
         self.model = model
         self.client = OpenAI(api_key=self.api_key)
 
-    def summarize_invoice_text(self, raw_text: str) -> str:
-        prompt = f"""
-                    Extraé un resumen entendible para humanos del siguiente texto proveniente de una factura escaneada.
-                    El objetivo es que un usuario valide visualmente el contenido extraído antes de procesarlo en profundidad.
-                    No inventes nada. Si hay errores, mostralos.
+        # Cargar prompt desde archivo
+        with open("app/prompts/summarize_invoice.txt", "r", encoding="utf-8") as f:
+            self.summary_prompt_template = f.read()
 
-                    Texto OCR:
-                    \"\"\"
-                    {raw_text}
-                    \"\"\"
-                """
-        
+    def summarize_invoice_text(self, raw_text: str) -> str:
+        prompt = self.summary_prompt_template.replace("{raw_text}", raw_text.strip())
+
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
