@@ -72,5 +72,20 @@ class InvoiceOCRAPI(MethodView):
             # Limpieza de archivos temporales
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
+class InvoiceDetailAPI(MethodView):
+    def get(self, invoice_id):
+        invoice = Invoice.query.get(invoice_id)
+        if not invoice:
+            return jsonify({"error": "Factura no encontrada"}), 404
+
+        return jsonify({
+            "invoice_id": invoice.id,
+            "status": invoice.status,
+            "final_data": invoice.final_data
+        }), 200
+
 # POST /api/invoices/ocr con uno o más archivos
 invoice_bp.add_url_rule('/ocr', view_func=InvoiceOCRAPI.as_view('invoice_ocr'), methods=['POST'])
+
+# GET /api/invoices/<int:invoice_id>
+invoice_bp.add_url_rule('/<int:invoice_id>', view_func=InvoiceDetailAPI.as_view('invoice_detail'), methods=['GET'])
