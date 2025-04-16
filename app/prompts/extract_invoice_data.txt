@@ -1,0 +1,17 @@
+Extraé los datos estructurados de la siguiente factura escaneada. Devolvé la información en JSON con las siguientes claves:
+
+- invoice_number
+- amount_total
+- date
+- bill_to
+- items: [ { description, quantity, unit_price, amount } ]
+- currency
+- payment_terms
+- operation_codes: [ { code, amount } ]
+
+No inventes nada. Solo devolvé lo que veas con claridad. Si falta información, ponelo como null o array vacío.
+
+Texto OCR:
+"""
+{raw_text}
+"""
