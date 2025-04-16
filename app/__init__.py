@@ -10,6 +10,9 @@ def create_app():
     # Inicializar extensiones
     init_extensions(app)
 
+    # Importar modelos aquí para que Flask-Migrate los detecte
+    from app.models import Invoice
+
     # Registrar Blueprints
     app.register_blueprint(invoice_bp, url_prefix='/api/invoices')
 
