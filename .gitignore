@@ -7,3 +7,6 @@ venv/
 *.pyc
 __pycache__/
 *.pyo
+
+# app files
+uploads/*.pdf
