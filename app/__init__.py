@@ -5,6 +5,7 @@ from app.api.invoice_api import invoice_bp
 from app.api.invoice_confirm_api import invoice_confirm_bp
 from app.api.invoice_reject_api import invoice_reject_bp
 from app.api.invoice_list_api import invoice_list_bp
+from app.api.invoice_retry_api import invoice_retry_bp
 
 def create_app():
     app = Flask(__name__)
