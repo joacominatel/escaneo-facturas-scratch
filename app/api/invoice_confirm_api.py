@@ -19,30 +19,23 @@ class InvoiceConfirmAPI(MethodView):
         if invoice.status != "waiting_validation":
             return jsonify({"error": "La factura ya fue procesada o tiene un estado inválido"}), 400
 
-        # Buscar texto OCR desde el log
+        # Confirmamos que haya texto OCR
         log = InvoiceLog.query.filter_by(invoice_id=invoice.id, event="ocr_extracted").first()
         if not log:
             return jsonify({"error": "No se encontró texto OCR para esta factura"}), 500
 
-        try:
-            process_invoice_task.delay(invoice.id)
+        # Cambiamos el estado a "processing" para reflejarlo de inmediato
+        invoice.status = "processing"
+        db.session.commit()
 
-            structured_data = openai_service.extract_structured_data(log.details)
+        # Encolamos la tarea en Celery
+        process_invoice_task.delay(invoice.id)
 
-            invoice.status = "processed"
-            invoice.final_data = structured_data
-
-            db.session.add(invoice)
-            db.session.add(InvoiceLog(invoice_id=invoice.id, event="final_processing", details=str(structured_data)))
-            db.session.commit()
-
-            return jsonify({
-                "invoice_id": invoice.id,
-                "status": "processing",
-                "message": "El procesamiento está en curso. Consultá luego el estado con GET /api/invoices/{id}"
-            }), 202
-
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
+        # Respondemos inmediatamente
+        return jsonify({
+            "invoice_id": invoice.id,
+            "status": "processing",
+            "message": "El procesamiento está en curso. Consultá luego el estado con GET /api/invoices/{id}"
+        }), 202
 
 invoice_confirm_bp.add_url_rule('/api/invoices/<int:invoice_id>/confirm', view_func=InvoiceConfirmAPI.as_view('invoice_confirm'), methods=['POST'])
