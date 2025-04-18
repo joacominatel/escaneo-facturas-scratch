@@ -7,6 +7,7 @@ from app.api.invoice_reject_api import invoice_reject_bp
 from app.api.invoice_list_api import invoice_list_bp
 from app.api.invoice_retry_api import invoice_retry_bp
 from app.api.invoice_status_summary_api import invoice_summary_bp
+from app.api.invoice_data_api import invoice_data_bp
 
 def create_app():
     app = Flask(__name__)
@@ -26,5 +27,6 @@ def create_app():
     app.register_blueprint(invoice_list_bp)
     app.register_blueprint(invoice_retry_bp)
     app.register_blueprint(invoice_summary_bp)
+    app.register_blueprint(invoice_data_bp)
 
     return app
