@@ -1,9 +1,9 @@
-import { Button } from "@/components/ui/button"
+import HomePage from "@/pages/HomePage"
 
 function App() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-svh">
-      <Button>Click me</Button>
+    <div className="min-h-svh bg-background text-foreground transition-colors">
+      <HomePage />
     </div>
   )
 }
