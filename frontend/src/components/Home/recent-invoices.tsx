@@ -143,8 +143,10 @@ export function RecentInvoices() {
         ))}
       </div>
       <div className="flex justify-center">
-        <Button variant="outline" size="sm" className="w-full">
-          Ver todas las facturas
+        <Button variant="outline" size="sm" className="w-full" asChild>
+          <a href="/invoices" className="flex items-center justify-center w-full">
+            Ver todas las facturas
+          </a>
         </Button>
       </div>
     </div>
