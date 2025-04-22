@@ -1,5 +1,6 @@
+"use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -9,6 +10,7 @@ import { CalendarIcon, RefreshCw, Search } from 'lucide-react'
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { useDebounce } from "@/hooks/useDebounce"
 
 interface InvoiceFiltersProps {
   onFiltersChange: (filters: Record<string, any>) => void
@@ -19,6 +21,9 @@ export function InvoiceFilters({ onFiltersChange, onRefresh }: InvoiceFiltersPro
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [date, setDate] = useState<Date | undefined>(undefined)
+  
+  // Aplicar debounce al término de búsqueda
+  const debouncedSearchTerm = useDebounce(searchTerm, 500)
 
   // Efecto para aplicar filtros cuando cambian
   useEffect(() => {
@@ -31,26 +36,23 @@ export function InvoiceFilters({ onFiltersChange, onRefresh }: InvoiceFiltersPro
     if (date) {
       filters.date = format(date, "yyyy-MM-dd")
     }
+    
+    if (debouncedSearchTerm.trim()) {
+      filters.op_number = debouncedSearchTerm.trim()
+    }
 
     onFiltersChange(filters)
-  }, [statusFilter, date, onFiltersChange])
+  }, [statusFilter, date, debouncedSearchTerm, onFiltersChange])
 
-  // Función para manejar la búsqueda
-  const handleSearch = () => {
-    if (searchTerm.trim()) {
-      onFiltersChange({ op_number: searchTerm.trim() })
-    } else {
-      // Si el término de búsqueda está vacío, eliminamos el filtro
-      const filters: Record<string, any> = {}
-      if (statusFilter !== "all") {
-        filters.status = statusFilter
-      }
-      if (date) {
-        filters.date = format(date, "yyyy-MM-dd")
-      }
-      onFiltersChange(filters)
-    }
-  }
+  // Función para manejar el cambio de estado
+  const handleStatusChange = useCallback((value: string) => {
+    setStatusFilter(value)
+  }, [])
+
+  // Función para manejar el cambio de fecha
+  const handleDateChange = useCallback((value: Date | undefined) => {
+    setDate(value)
+  }, [])
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -60,18 +62,18 @@ export function InvoiceFilters({ onFiltersChange, onRefresh }: InvoiceFiltersPro
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="h-9"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleSearch()
-            }
-          }}
         />
-        <Button variant="outline" size="sm" className="h-9 px-3" onClick={handleSearch}>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="h-9 px-3" 
+          onClick={() => setSearchTerm(searchTerm)} // Forzar actualización si es necesario
+        >
           <Search className="h-4 w-4" />
         </Button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={handleStatusChange}>
           <SelectTrigger className="h-9 w-[180px]">
             <SelectValue placeholder="Filtrar por estado" />
           </SelectTrigger>
@@ -99,14 +101,12 @@ export function InvoiceFilters({ onFiltersChange, onRefresh }: InvoiceFiltersPro
             <Calendar
               mode="single"
               selected={date}
-              onSelect={(date) => {
-                setDate(date)
-              }}
+              onSelect={handleDateChange}
               initialFocus
             />
             {date && (
               <div className="p-3 border-t border-border flex justify-end">
-                <Button variant="ghost" size="sm" onClick={() => setDate(undefined)}>
+                <Button variant="ghost" size="sm" onClick={() => handleDateChange(undefined)}>
                   Limpiar
                 </Button>
               </div>

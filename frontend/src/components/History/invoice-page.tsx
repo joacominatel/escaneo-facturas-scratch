@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { InvoiceFilters } from "./invoice-filters"
 import { InvoiceTable } from "./invoice-table"
@@ -6,31 +6,55 @@ import { InvoicePagination } from "./invoice-pagination"
 import { useInvoicesList } from "@/hooks/api"
 import { ErrorAlert } from "@/components/ui/error-alert"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useDebounce } from "@/hooks/useDebounce"
+import { useThrottle } from "@/hooks/useThrottle"
 
 export function UploadHistory() {
   // Estado para los filtros
   const [itemsPerPage, setItemsPerPage] = useState<number>(10)
+  const [filters, setFilters] = useState<Record<string, any>>({})
+  
+  // Aplicar debounce a los filtros para evitar múltiples solicitudes mientras el usuario cambia los filtros
+  const debouncedFilters = useDebounce(filters, 500)
+  
+  // Aplicar throttling a los cambios de elementos por página
+  const throttledItemsPerPage = useThrottle(itemsPerPage, 1000)
 
   // Hook para obtener las facturas
   const { invoices, pagination, isLoading, error, updateParams, refreshInvoices } = useInvoicesList({
-    per_page: itemsPerPage,
+    per_page: throttledItemsPerPage,
   })
 
+  // Efecto para aplicar los filtros debounced
+  useEffect(() => {
+    updateParams({ ...debouncedFilters, per_page: throttledItemsPerPage })
+  }, [debouncedFilters, throttledItemsPerPage, updateParams])
+
   // Función para manejar el cambio de página
-  const handlePageChange = (page: number) => {
+  const handlePageChange = useCallback((page: number) => {
     updateParams({ page })
-  }
+  }, [updateParams])
 
   // Función para manejar el cambio de filtros
-  const handleFiltersChange = (filters: Record<string, any>) => {
-    updateParams({ ...filters, per_page: itemsPerPage })
-  }
+  const handleFiltersChange = useCallback((newFilters: Record<string, any>) => {
+    setFilters(prev => {
+      // Solo actualizar si los filtros han cambiado
+      if (JSON.stringify(prev) !== JSON.stringify(newFilters)) {
+        return newFilters
+      }
+      return prev
+    })
+  }, [])
 
   // Función para manejar el cambio de elementos por página
-  const handleItemsPerPageChange = (perPage: number) => {
+  const handleItemsPerPageChange = useCallback((perPage: number) => {
     setItemsPerPage(perPage)
-    updateParams({ per_page: perPage, page: 1 })
-  }
+  }, [])
+
+  // Función para refrescar los datos con limpieza de caché
+  const handleRefresh = useCallback(() => {
+    refreshInvoices(true) // true para limpiar la caché antes de refrescar
+  }, [refreshInvoices])
 
   // Renderizar el estado de carga
   if (isLoading && !invoices.length) {
@@ -48,7 +72,7 @@ export function UploadHistory() {
 
   // Renderizar el estado de error
   if (error) {
-    return <ErrorAlert title="Error al cargar el historial de facturas" message={error} onRetry={refreshInvoices} />
+    return <ErrorAlert title="Error al cargar el historial de facturas" message={error} onRetry={handleRefresh} />
   }
 
   return (
@@ -58,11 +82,11 @@ export function UploadHistory() {
         <CardDescription>Historial completo de facturas procesadas</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <InvoiceFilters onFiltersChange={handleFiltersChange} onRefresh={refreshInvoices} />
+        <InvoiceFilters onFiltersChange={handleFiltersChange} onRefresh={handleRefresh} />
 
         <InvoiceTable 
           invoices={invoices} 
-          onRefresh={refreshInvoices}
+          onRefresh={handleRefresh}
           itemsPerPage={itemsPerPage}
           onItemsPerPageChange={handleItemsPerPageChange}
         />
