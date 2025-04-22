@@ -12,13 +12,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowUpRight, CheckCircle, Clock, RefreshCw, XCircle } from "lucide-react"
+import { ArrowUpRight, CheckCircle, Clock, RefreshCw, XCircle, Eye } from "lucide-react"
 import { useInvoicesList, useInvoiceActions } from "@/hooks/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEffect } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { toast } from "sonner"
+import { InvoiceDetailsModal } from "@/components/invoice-details-modal"
 
 type InvoiceStatus = "processed" | "waiting_validation" | "processing" | "failed" | "rejected"
 
@@ -31,6 +32,8 @@ export function RecentInvoices() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false)
+  const [viewingInvoiceId, setViewingInvoiceId] = useState<number | null>(null)
 
   useEffect(() => {
     // Actualizar cada 30 segundos
@@ -79,6 +82,12 @@ export function RecentInvoices() {
     } catch (error) {
       toast.error("Error al reintentar el procesamiento")
     }
+  }
+
+  // Función para abrir el modal de detalles
+  const handleViewDetails = (invoiceId: number) => {
+    setViewingInvoiceId(invoiceId)
+    setDetailsModalOpen(true)
   }
 
   const getStatusIcon = (status: InvoiceStatus) => {
@@ -192,6 +201,16 @@ export function RecentInvoices() {
                 <div className="mt-1">{getStatusBadge(invoice.status as InvoiceStatus)}</div>
               </div>
 
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title="Ver detalles"
+                onClick={() => handleViewDetails(invoice.id)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+
               {invoice.status === "waiting_validation" && (
                 <div className="flex gap-1">
                   <Button
@@ -293,6 +312,9 @@ export function RecentInvoices() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de detalles de factura */}
+      <InvoiceDetailsModal invoiceId={viewingInvoiceId} open={detailsModalOpen} onOpenChange={setDetailsModalOpen} />
     </div>
   )
 }

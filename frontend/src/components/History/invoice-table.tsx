@@ -14,9 +14,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { CheckCircle, Clock, Download, Eye, MoreHorizontal, RefreshCw, XCircle } from "lucide-react"
+import { CheckCircle, Clock, Download, Eye, MoreHorizontal, RefreshCw, XCircle } from 'lucide-react'
 import { useInvoiceActions } from "@/hooks/api"
 import { toast } from "sonner"
+import { InvoiceDetailsModal } from "@/components/invoice-details-modal"
 
 type InvoiceStatus = "processed" | "waiting_validation" | "processing" | "failed" | "rejected"
 
@@ -40,6 +41,8 @@ export function InvoiceTable({ invoices, onRefresh, itemsPerPage, onItemsPerPage
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false)
+  const [viewingInvoiceId, setViewingInvoiceId] = useState<number | null>(null)
 
   // Función para manejar la confirmación de una factura
   const handleConfirm = async () => {
@@ -79,6 +82,12 @@ export function InvoiceTable({ invoices, onRefresh, itemsPerPage, onItemsPerPage
     } catch (error) {
       toast.error("Error al reintentar el procesamiento")
     }
+  }
+
+  // Función para abrir el modal de detalles
+  const handleViewDetails = (invoiceId: number) => {
+    setViewingInvoiceId(invoiceId)
+    setDetailsModalOpen(true)
   }
 
   // Función para obtener el icono de estado
@@ -187,10 +196,14 @@ export function InvoiceTable({ invoices, onRefresh, itemsPerPage, onItemsPerPage
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver detalles" asChild>
-                        <a href={`/invoice/${invoice.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </a>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8" 
+                        title="Ver detalles"
+                        onClick={() => handleViewDetails(invoice.id)}
+                      >
+                        <Eye className="h-4 w-4" />
                       </Button>
 
                       <DropdownMenu>
@@ -200,10 +213,8 @@ export function InvoiceTable({ invoices, onRefresh, itemsPerPage, onItemsPerPage
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <a href={`/invoice/${invoice.id}`}>
-                              <Eye className="h-4 w-4 mr-2" /> Ver detalles
-                            </a>
+                          <DropdownMenuItem onClick={() => handleViewDetails(invoice.id)}>
+                            <Eye className="h-4 w-4 mr-2" /> Ver detalles
                           </DropdownMenuItem>
 
                           <DropdownMenuItem>
@@ -292,6 +303,13 @@ export function InvoiceTable({ invoices, onRefresh, itemsPerPage, onItemsPerPage
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de detalles de factura */}
+      <InvoiceDetailsModal 
+        invoiceId={viewingInvoiceId} 
+        open={detailsModalOpen} 
+        onOpenChange={setDetailsModalOpen} 
+      />
     </>
   )
 }
