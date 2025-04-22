@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 from tempfile import mkdtemp
 from app.services.openai_service import OpenAIService
 import shutil
+from datetime import datetime
 
 from app.models.invoice import Invoice
 from app.models.invoice_log import InvoiceLog
@@ -30,15 +31,19 @@ class InvoiceOCRAPI(MethodView):
 
         try:
             for file in files:
+                today_folder = datetime.utcnow().strftime("%Y-%m-%d")
+                upload_dir = os.path.join("uploads", today_folder)
+                os.makedirs(upload_dir, exist_ok=True)
+
                 filename = secure_filename(file.filename)
-                file_path = os.path.join(tmp_dir, filename)
-                file.save(file_path)
+                filepath = os.path.join(upload_dir, filename)
+                file.save(filepath)
 
                 if filename.lower().endswith(".zip"):
-                    pdfs = extract_pdfs_from_zip(file_path, extract_to=tmp_dir)
+                    pdfs = extract_pdfs_from_zip(filepath, extract_to=tmp_dir)
                     extracted_paths.extend(pdfs)
                 elif filename.lower().endswith(".pdf"):
-                    extracted_paths.append(file_path)
+                    extracted_paths.append(filepath)
 
             if not extracted_paths:
                 return jsonify({"error": "No se encontraron PDFs válidos."}), 400
@@ -50,7 +55,11 @@ class InvoiceOCRAPI(MethodView):
                 summary = openai_service.summarize_invoice_text(ocr_text)
 
                 # Crear y guardar factura
-                invoice = Invoice(filename=os.path.basename(path), status="waiting_validation")
+                invoice = Invoice(
+                    filename=filename,
+                    file_path=filepath,
+                    status="waiting_validation"
+                )
                 db.session.add(invoice)
                 db.session.commit()
 

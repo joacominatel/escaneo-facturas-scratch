@@ -9,6 +9,7 @@ class Invoice(db.Model):
     filename = db.Column(db.String(255), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='pending')
     final_data = db.Column(JSON, nullable=True)
+    file_path = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -9,7 +9,7 @@ __pycache__/
 *.pyo
 
 # app files
-uploads/*.pdf
+uploads/*
 docs/Instructions.md
 
 # # # # Vite # # # #
