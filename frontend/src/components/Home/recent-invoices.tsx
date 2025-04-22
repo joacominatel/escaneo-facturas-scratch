@@ -1,13 +1,24 @@
 "use client"
 
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { ArrowUpRight, CheckCircle, Clock, RefreshCw, XCircle } from "lucide-react"
-import { useInvoicesList } from "@/hooks/api"
+import { useInvoicesList, useInvoiceActions } from "@/hooks/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEffect } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import { toast } from "sonner"
 
 type InvoiceStatus = "processed" | "waiting_validation" | "processing" | "failed" | "rejected"
 
@@ -15,6 +26,11 @@ export function RecentInvoices() {
   const { invoices, isLoading, error, updateParams, refreshInvoices } = useInvoicesList({
     per_page: 5,
   })
+  const { confirmInvoice, rejectInvoice, retryInvoice, isLoading: isActionLoading } = useInvoiceActions()
+  const [selectedInvoice, setSelectedInvoice] = useState<number | null>(null)
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const [rejectReason, setRejectReason] = useState("")
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
 
   useEffect(() => {
     // Actualizar cada 30 segundos
@@ -24,6 +40,46 @@ export function RecentInvoices() {
 
     return () => clearInterval(interval)
   }, [updateParams])
+
+  // Función para manejar la confirmación de una factura
+  const handleConfirm = async () => {
+    if (!selectedInvoice) return
+
+    try {
+      await confirmInvoice(selectedInvoice)
+      toast.success("Factura confirmada correctamente")
+      setConfirmDialogOpen(false)
+      refreshInvoices()
+    } catch (error) {
+      toast.error("Error al confirmar la factura")
+    }
+  }
+
+  // Función para manejar el rechazo de una factura
+  const handleReject = async () => {
+    if (!selectedInvoice || !rejectReason.trim()) return
+
+    try {
+      await rejectInvoice(selectedInvoice, rejectReason)
+      toast.success("Factura rechazada correctamente")
+      setRejectDialogOpen(false)
+      setRejectReason("")
+      refreshInvoices()
+    } catch (error) {
+      toast.error("Error al rechazar la factura")
+    }
+  }
+
+  // Función para manejar el reintento de una factura
+  const handleRetry = async (invoiceId: number) => {
+    try {
+      await retryInvoice(invoiceId)
+      toast.success("Procesamiento de factura reiniciado")
+      refreshInvoices()
+    } catch (error) {
+      toast.error("Error al reintentar el procesamiento")
+    }
+  }
 
   const getStatusIcon = (status: InvoiceStatus) => {
     switch (status) {
@@ -135,8 +191,55 @@ export function RecentInvoices() {
               <div className="text-right">
                 <div className="mt-1">{getStatusBadge(invoice.status as InvoiceStatus)}</div>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ArrowUpRight className="h-4 w-4" />
+
+              {invoice.status === "waiting_validation" && (
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-green-500"
+                    title="Confirmar"
+                    onClick={() => {
+                      setSelectedInvoice(invoice.id)
+                      setConfirmDialogOpen(true)
+                    }}
+                    disabled={isActionLoading}
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-red-500"
+                    title="Rechazar"
+                    onClick={() => {
+                      setSelectedInvoice(invoice.id)
+                      setRejectDialogOpen(true)
+                    }}
+                    disabled={isActionLoading}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              {(invoice.status === "failed" || invoice.status === "rejected") && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  title="Reintentar"
+                  onClick={() => handleRetry(invoice.id)}
+                  disabled={isActionLoading}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              )}
+
+              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                <a href={`/invoice/${invoice.id}`}>
+                  <ArrowUpRight className="h-4 w-4" />
+                </a>
               </Button>
             </div>
           </div>
@@ -144,11 +247,52 @@ export function RecentInvoices() {
       </div>
       <div className="flex justify-center">
         <Button variant="outline" size="sm" className="w-full" asChild>
-          <a href="/invoices" className="flex items-center justify-center w-full">
-            Ver todas las facturas
-          </a>
+          <a href="?tab=history">Ver todas las facturas</a>
         </Button>
       </div>
+
+      {/* Diálogo de confirmación */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar factura</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas confirmar esta factura? Esto iniciará el procesamiento completo.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirm} disabled={isActionLoading}>
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de rechazo */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rechazar factura</DialogTitle>
+            <DialogDescription>Por favor, proporciona un motivo para rechazar esta factura.</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Motivo del rechazo"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleReject} disabled={!rejectReason.trim() || isActionLoading}>
+              Rechazar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
