@@ -27,7 +27,7 @@ export function useInvoiceUpload() {
       // Crear FormData para enviar los archivos
       const formData = new FormData()
       files.forEach((file) => {
-        formData.append("files", file)
+        formData.append("file", file)
       })
 
       // Simular progreso de carga
