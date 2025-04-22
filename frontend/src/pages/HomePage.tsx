@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FileUploadArea } from "@/components/Home/file-upload-area"
 import { RecentInvoices } from "@/components/Home/recent-invoices"
 import { InvoiceStatusSummary } from "@/components/Home/invoice-status-summary"
-import { UploadHistory } from "@/components/Home/upload-history"
+import { UploadHistory } from "@/components/History/invoice-page"
 import { FileText, UploadCloud } from 'lucide-react'
 
 export default function HomePage() {
