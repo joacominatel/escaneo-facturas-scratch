@@ -18,6 +18,8 @@ import { CheckCircle, Clock, Download, Eye, MoreHorizontal, RefreshCw, XCircle }
 import { useInvoiceActions } from "@/hooks/api"
 import { toast } from "sonner"
 import { InvoiceDetailsModal } from "@/components/invoice-details-modal"
+// Importar la función de utilidad para descargar facturas
+import { downloadInvoice } from "@/lib/invoice-utils"
 
 type InvoiceStatus = "processed" | "waiting_validation" | "processing" | "failed" | "rejected"
 
@@ -131,6 +133,15 @@ const InvoiceTableRow = memo(
             >
               <Eye className="h-4 w-4" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="Descargar"
+              onClick={() => downloadInvoice(invoice.id, invoice.filename)}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -143,7 +154,7 @@ const InvoiceTableRow = memo(
                   <Eye className="h-4 w-4 mr-2" /> Ver detalles
                 </DropdownMenuItem>
 
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => downloadInvoice(invoice.id, invoice.filename)}>
                   <Download className="h-4 w-4 mr-2" /> Descargar
                 </DropdownMenuItem>
 
