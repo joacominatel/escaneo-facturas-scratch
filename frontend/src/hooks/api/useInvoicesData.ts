@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { getApiUrl } from "@/lib/env"
+import { safeJsonParse, handleApiError, checkResponseStatus } from "@/lib/api-utils"
 
 interface InvoiceItem {
   description: string
@@ -47,7 +48,7 @@ export function useInvoicesData(initialParams: InvoicesDataParams = {}) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchInvoicesData = async (newParams?: InvoicesDataParams) => {
+  const fetchInvoicesData = useCallback(async (newParams?: InvoicesDataParams) => {
     const queryParams = newParams || params
     setIsLoading(true)
     setError(null)
@@ -60,12 +61,13 @@ export function useInvoicesData(initialParams: InvoicesDataParams = {}) {
       if (queryParams.op_number) queryString.append("op_number", queryParams.op_number)
 
       const response = await fetch(getApiUrl(`api/invoices/data?${queryString.toString()}`))
+      
+      // Check if response is OK
+      checkResponseStatus(response)
 
-      if (!response.ok) {
-        throw new Error(`Error al obtener datos de facturas: ${response.statusText}`)
-      }
-
-      const data: InvoicesDataResponse = await response.json()
+      // Safely parse JSON
+      const data = await safeJsonParse<InvoicesDataResponse>(response)
+      
       setInvoicesData(data.invoices)
       setPagination({
         page: data.page,
@@ -80,22 +82,30 @@ export function useInvoicesData(initialParams: InvoicesDataParams = {}) {
 
       return data
     } catch (error) {
-      console.error("Error al obtener datos de facturas:", error)
-      setError(error instanceof Error ? error.message : "Error desconocido")
-      return null
+      const errorMessage = handleApiError(error, "Failed to fetch invoice data")
+      setError(errorMessage)
+      
+      // Return empty data structure to prevent UI errors
+      return {
+        page: queryParams.page || 1,
+        per_page: queryParams.per_page || 10,
+        total: 0,
+        pages: 0,
+        invoices: []
+      }
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params])
 
   useEffect(() => {
     fetchInvoicesData()
-  }, [])
+  }, [fetchInvoicesData])
 
-  const updateParams = (newParams: InvoicesDataParams) => {
+  const updateParams = useCallback((newParams: InvoicesDataParams) => {
     const updatedParams = { ...params, ...newParams }
     fetchInvoicesData(updatedParams)
-  }
+  }, [params, fetchInvoicesData])
 
   return {
     invoicesData,
@@ -103,6 +113,6 @@ export function useInvoicesData(initialParams: InvoicesDataParams = {}) {
     isLoading,
     error,
     updateParams,
-    refreshInvoicesData: () => fetchInvoicesData(),
+    refreshInvoicesData: fetchInvoicesData,
   }
 }

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { getApiUrl } from "@/lib/env"
+import { safeJsonParse, handleApiError, checkResponseStatus } from "@/lib/api-utils"
 
 interface InvoiceActionResponse {
   invoice_id: number
@@ -20,19 +21,21 @@ export function useInvoiceActions() {
         method: "POST",
       })
 
-      if (!response.ok) {
-        throw new Error(`Error al confirmar factura: ${response.statusText}`)
-      }
+      // Check if response is OK
+      checkResponseStatus(response)
 
-      const data: InvoiceActionResponse = await response.json()
-      toast("" , {
+      // Safely parse JSON
+      const data = await safeJsonParse<InvoiceActionResponse>(response)
+      
+      toast("", {
         description: data.message,
       })
       return data
     } catch (error) {
-      console.error("Error al confirmar factura:", error)
-      toast("" , {
-        description: error instanceof Error ? error.message : "Ocurrió un error desconocido",
+      const errorMessage = handleApiError(error, "Error al confirmar factura")
+      
+      toast("Error al confirmar factura", {
+        description: errorMessage,
       })
       return null
     } finally {
@@ -51,19 +54,21 @@ export function useInvoiceActions() {
         body: JSON.stringify({ reason }),
       })
 
-      if (!response.ok) {
-        throw new Error(`Error al rechazar factura: ${response.statusText}`)
-      }
+      // Check if response is OK
+      checkResponseStatus(response)
 
-      const data: InvoiceActionResponse = await response.json()
-      toast("" , {
+      // Safely parse JSON
+      const data = await safeJsonParse<InvoiceActionResponse>(response)
+      
+      toast("", {
         description: data.message,
       })
       return data
     } catch (error) {
-      console.error("Error al rechazar factura:", error)
+      const errorMessage = handleApiError(error, "Error al rechazar factura")
+      
       toast("Error al rechazar factura", {
-        description: error instanceof Error ? error.message : "Ocurrió un error desconocido",
+        description: errorMessage,
       })
       return null
     } finally {
@@ -78,19 +83,21 @@ export function useInvoiceActions() {
         method: "POST",
       })
 
-      if (!response.ok) {
-        throw new Error(`Error al reintentar factura: ${response.statusText}`)
-      }
+      // Check if response is OK
+      checkResponseStatus(response)
 
-      const data: InvoiceActionResponse = await response.json()
+      // Safely parse JSON
+      const data = await safeJsonParse<InvoiceActionResponse>(response)
+      
       toast("La factura ha sido reintentada", {
         description: data.message,
       })
       return data
     } catch (error) {
-      console.error("Error al reintentar factura:", error)
+      const errorMessage = handleApiError(error, "Error al reintentar factura")
+      
       toast("Error al reintentar factura", {
-        description: error instanceof Error ? error.message : "Ocurrió un error desconocido",
+        description: errorMessage,
       })
       return null
     } finally {

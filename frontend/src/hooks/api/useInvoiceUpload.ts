@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { getApiUrl } from "@/lib/env"
+import { safeJsonParse, handleApiError, checkResponseStatus } from "@/lib/api-utils"
 
 interface UploadResponse {
   invoice_id: number
@@ -17,7 +18,7 @@ export function useInvoiceUpload() {
   const [uploadedInvoices, setUploadedInvoices] = useState<UploadResponse[]>([])
 
   const uploadInvoices = async (files: File[]) => {
-    if (files.length === 0) return
+    if (files.length === 0) return null
 
     setIsUploading(true)
     setProgress(0)
@@ -47,25 +48,28 @@ export function useInvoiceUpload() {
       })
 
       clearInterval(progressInterval)
+      
+      // Check if response is OK
+      checkResponseStatus(response)
 
-      if (!response.ok) {
-        throw new Error(`Error al subir facturas: ${response.statusText}`)
-      }
-
-      const data: UploadResponse[] = await response.json()
+      // Safely parse JSON
+      const data = await safeJsonParse<UploadResponse[]>(response)
+      
       setUploadedInvoices(data)
       setProgress(100)
 
       toast("Facturas subidas correctamente", {
-          description: `Se han subido ${files.length} facturas para procesamiento`,
-        })
+        description: `Se han subido ${files.length} facturas para procesamiento`,
+      })
 
       return data
     } catch (error) {
-      console.error("Error al subir facturas:", error)
+      const errorMessage = handleApiError(error, "Error al subir facturas")
+      
       toast("Error al subir facturas", {
-        description: error instanceof Error ? error.message : "Ocurrió un error desconocido",
+        description: errorMessage,
       })
+      
       return null
     } finally {
       setIsUploading(false)

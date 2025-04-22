@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { getApiUrl } from "@/lib/env"
+import { safeJsonParse, handleApiError, checkResponseStatus } from "@/lib/api-utils"
 
 interface InvoiceStatusResponse {
   invoice_id: number
@@ -16,36 +17,39 @@ export function useInvoiceStatus(invoiceId: number | null) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchStatus = async () => {
-    if (!invoiceId) return
+  const fetchStatus = useCallback(async () => {
+    if (!invoiceId) return null
 
     setIsLoading(true)
     setError(null)
 
     try {
       const response = await fetch(getApiUrl(`api/invoices/${invoiceId}/status`))
+      
+      // Check if response is OK
+      checkResponseStatus(response)
 
-      if (!response.ok) {
-        throw new Error(`Error al obtener estado: ${response.statusText}`)
-      }
-
-      const data: InvoiceStatusResponse = await response.json()
+      // Safely parse JSON
+      const data = await safeJsonParse<InvoiceStatusResponse>(response)
+      
       setStatus(data)
       return data
     } catch (error) {
-      console.error("Error al obtener estado:", error)
-      setError(error instanceof Error ? error.message : "Error desconocido")
+      const errorMessage = handleApiError(error, "Failed to fetch invoice status")
+      setError(errorMessage)
+      
+      // Return null instead of a default object since this is a specific invoice
       return null
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [invoiceId])
 
   useEffect(() => {
     if (invoiceId) {
       fetchStatus()
     }
-  }, [invoiceId])
+  }, [invoiceId, fetchStatus])
 
   return {
     status,

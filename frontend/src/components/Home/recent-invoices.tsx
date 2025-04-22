@@ -2,15 +2,17 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowUpRight, CheckCircle, Clock, XCircle } from "lucide-react"
+import { ArrowUpRight, CheckCircle, Clock, RefreshCw, XCircle } from "lucide-react"
 import { useInvoicesList } from "@/hooks/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEffect } from "react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 type InvoiceStatus = "processed" | "waiting_validation" | "processing" | "failed" | "rejected"
 
 export function RecentInvoices() {
-  const { invoices, isLoading, error, updateParams } = useInvoicesList({
+  const { invoices, isLoading, error, updateParams, refreshInvoices } = useInvoicesList({
     per_page: 5,
   })
 
@@ -89,10 +91,30 @@ export function RecentInvoices() {
     )
   }
 
-  if (error || !invoices.length) {
+  if (error) {
     return (
-      <div className="flex items-center justify-center h-[200px]">
+      <Alert variant="destructive" className="h-auto">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error al cargar facturas recientes</AlertTitle>
+        <AlertDescription className="flex flex-col gap-2">
+          <p>{error}</p>
+          <Button variant="outline" size="sm" className="w-fit mt-2" onClick={() => refreshInvoices()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reintentar
+          </Button>
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  if (!invoices.length) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[200px] gap-4">
         <p className="text-muted-foreground">No hay facturas recientes</p>
+        <Button variant="outline" size="sm" onClick={() => refreshInvoices()}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Actualizar
+        </Button>
       </div>
     )
   }

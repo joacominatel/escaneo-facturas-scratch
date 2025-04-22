@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { getApiUrl } from "@/lib/env"
+import { safeJsonParse, handleApiError, checkResponseStatus } from "@/lib/api-utils"
 
 interface StatusSummary {
   waiting_validation: number
@@ -20,32 +21,42 @@ export function useInvoicesSummary() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchSummary = async () => {
+  const fetchSummary = useCallback(async () => {
     setIsLoading(true)
+    console.log(getApiUrl("api/invoices/status-summary/"))
     setError(null)
 
     try {
       const response = await fetch(getApiUrl("api/invoices/status-summary/"))
+      
+      // Check if response is OK
+      checkResponseStatus(response)
 
-      if (!response.ok) {
-        throw new Error(`Error al obtener resumen: ${response.statusText}`)
-      }
-
-      const data: StatusSummaryResponse = await response.json()
+      // Safely parse JSON
+      const data = await safeJsonParse<StatusSummaryResponse>(response)
+      
       setSummary(data.summary)
       return data.summary
     } catch (error) {
-      console.error("Error al obtener resumen:", error)
-      setError(error instanceof Error ? error.message : "Error desconocido")
-      return null
+      const errorMessage = handleApiError(error, "Failed to fetch status summary")
+      setError(errorMessage)
+      
+      // Return default summary to prevent UI errors
+      return {
+        waiting_validation: 0,
+        processing: 0,
+        processed: 0,
+        failed: 0,
+        rejected: 0
+      }
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchSummary()
-  }, [])
+  }, [fetchSummary])
 
   return {
     summary,

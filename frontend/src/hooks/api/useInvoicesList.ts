@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { getApiUrl } from "@/lib/env"
+import { safeJsonParse, handleApiError, checkResponseStatus } from "@/lib/api-utils"
 
 interface Invoice {
     id: number
@@ -37,7 +38,7 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const fetchInvoices = async (newParams?: InvoicesListParams) => {
+    const fetchInvoices = useCallback(async (newParams?: InvoicesListParams) => {
         const queryParams = newParams || params
         setIsLoading(true)
         setError(null)
@@ -51,47 +52,51 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
             if (queryParams.op_number) queryString.append("op_number", queryParams.op_number)
 
             const response = await fetch(getApiUrl(`api/invoices/?${queryString.toString()}`))
+            
+            // Check if response is OK
+            checkResponseStatus(response)
 
-            if (!response.ok) {
-                throw new Error(`Error al obtener facturas: ${response.statusText}`)
+            // Safely parse JSON
+            const data = await safeJsonParse<InvoicesListResponse>(response)
+            
+            setInvoices(data.invoices)
+            setPagination({
+                page: data.page,
+                per_page: data.per_page,
+                total: data.total,
+                pages: data.pages,
+            })
+
+            if (newParams) {
+                setParams(newParams)
             }
-
-            try {
-                const data: InvoicesListResponse = await response.json()
-                setInvoices(data.invoices)
-                setPagination({
-                    page: data.page,
-                    per_page: data.per_page,
-                    total: data.total,
-                    pages: data.pages,
-                })
-
-                if (newParams) {
-                    setParams(newParams)
-                }
-                return data
-            } catch (error) {
-                console.error("Error al analizar la respuesta JSON:", error)
-                setError("Error al analizar la respuesta del servidor")
-                return null
-            }
+            
+            return data
         } catch (error) {
-            console.error("Error al obtener facturas:", error)
-            setError(error instanceof Error ? error.message : "Error desconocido")
-            return null
+            const errorMessage = handleApiError(error, "Failed to fetch invoices")
+            setError(errorMessage)
+            
+            // Return empty data structure to prevent UI errors
+            return {
+                page: queryParams.page || 1,
+                per_page: queryParams.per_page || 10,
+                total: 0,
+                pages: 0,
+                invoices: []
+            }
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [params])
 
     useEffect(() => {
         fetchInvoices()
-    }, [])
+    }, [fetchInvoices])
 
-    const updateParams = (newParams: InvoicesListParams) => {
+    const updateParams = useCallback((newParams: InvoicesListParams) => {
         const updatedParams = { ...params, ...newParams }
         fetchInvoices(updatedParams)
-    }
+    }, [params, fetchInvoices])
 
     return {
         invoices,
@@ -99,6 +104,6 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
         isLoading,
         error,
         updateParams,
-        refreshInvoices: () => fetchInvoices(),
+        refreshInvoices: fetchInvoices,
     }
 }
