@@ -5,60 +5,80 @@ import { FileUploadArea } from "@/components/Home/file-upload-area"
 import { RecentInvoices } from "@/components/Home/recent-invoices"
 import { InvoiceStatusSummary } from "@/components/Home/invoice-status-summary"
 import { UploadHistory } from "@/components/History/invoice-page"
-import { FileText, UploadCloud } from 'lucide-react'
+import { FileText, UploadCloud } from "lucide-react"
+import { useEffect, useState } from "react"
+
 
 export default function HomePage() {
+  const searchParams = new URLSearchParams(window.location.search)
+  const tabParam = searchParams.get("tab")
+  const [activeTab, setActiveTab] = useState("overview")
+
+  // Sincronizar el tab activo con el parámetro de URL
+  useEffect(() => {
+    if (tabParam && ["overview", "upload", "history"].includes(tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [tabParam])
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <main className="flex-1">
-        <div className="px-6 grid items-start gap-6 pb-8 pt-6 md:py-8">
+        <div className="grid items-start gap-6 pb-8 pt-6 md:py-8 px-6">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Escaneo de Facturas</h1>
-              <p className="text-muted-foreground">
-                Sube, procesa y gestiona tus facturas de forma automática.
-              </p>
+              <p className="text-muted-foreground">Sube, procesa y gestiona tus facturas de forma automática.</p>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="h-9">
                 <FileText className="mr-2 h-4 w-4" />
                 Ver Guía
               </Button>
-              <Button size="sm" className="h-9">
-                <UploadCloud className="mr-2 h-4 w-4" />
-                Subir Facturas
+              <Button size="sm" className="h-9" asChild={activeTab !== "upload"}>
+                {activeTab === "upload" ? (
+                  <span>
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Subir Facturas
+                  </span>
+                ) : (
+                  <a href="?tab=upload">
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Subir Facturas
+                  </a>
+                )}
               </Button>
             </div>
           </div>
-          
-          <Tabs defaultValue="overview" className="space-y-4">
+
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value)} className="space-y-4">
             <TabsList>
-              <TabsTrigger value="overview">Resumen</TabsTrigger>
-              <TabsTrigger value="upload">Subir Facturas</TabsTrigger>
-              <TabsTrigger value="history">Historial</TabsTrigger>
+              <TabsTrigger value="overview" asChild>
+                <a href="?tab=overview">Resumen</a>
+              </TabsTrigger>
+              <TabsTrigger value="upload" asChild>
+                <a href="?tab=upload">Subir Facturas</a>
+              </TabsTrigger>
+              <TabsTrigger value="history" asChild>
+                <a href="?tab=history">Historial</a>
+              </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="overview" className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Total Facturas
-                    </CardTitle>
+                    <CardTitle className="text-sm font-medium">Total Facturas</CardTitle>
                     <FileText className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">142</div>
-                    <p className="text-xs text-muted-foreground">
-                      +22% desde el mes pasado
-                    </p>
+                    <p className="text-xs text-muted-foreground">+22% desde el mes pasado</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Procesadas
-                    </CardTitle>
+                    <CardTitle className="text-sm font-medium">Procesadas</CardTitle>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 24 24"
@@ -74,16 +94,12 @@ export default function HomePage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">128</div>
-                    <p className="text-xs text-muted-foreground">
-                      90% de tasa de éxito
-                    </p>
+                    <p className="text-xs text-muted-foreground">90% de tasa de éxito</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Pendientes
-                    </CardTitle>
+                    <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 24 24"
@@ -100,16 +116,12 @@ export default function HomePage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">8</div>
-                    <p className="text-xs text-muted-foreground">
-                      Esperando procesamiento
-                    </p>
+                    <p className="text-xs text-muted-foreground">Esperando procesamiento</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Rechazadas
-                    </CardTitle>
+                    <CardTitle className="text-sm font-medium">Rechazadas</CardTitle>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 24 24"
@@ -125,20 +137,16 @@ export default function HomePage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">6</div>
-                    <p className="text-xs text-muted-foreground">
-                      4% de tasa de rechazo
-                    </p>
+                    <p className="text-xs text-muted-foreground">4% de tasa de rechazo</p>
                   </CardContent>
                 </Card>
               </div>
-              
+
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                 <Card className="col-span-4">
                   <CardHeader>
                     <CardTitle>Estado de Facturas</CardTitle>
-                    <CardDescription>
-                      Distribución de facturas por estado de procesamiento
-                    </CardDescription>
+                    <CardDescription>Distribución de facturas por estado de procesamiento</CardDescription>
                   </CardHeader>
                   <CardContent className="pl-2">
                     <InvoiceStatusSummary />
@@ -147,9 +155,7 @@ export default function HomePage() {
                 <Card className="col-span-3">
                   <CardHeader>
                     <CardTitle>Facturas Recientes</CardTitle>
-                    <CardDescription>
-                      Últimas facturas procesadas en el sistema
-                    </CardDescription>
+                    <CardDescription>Últimas facturas procesadas en el sistema</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <RecentInvoices />
@@ -157,33 +163,21 @@ export default function HomePage() {
                 </Card>
               </div>
             </TabsContent>
-            
+
             <TabsContent value="upload" className="space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle>Subir Facturas</CardTitle>
-                  <CardDescription>
-                    Sube archivos PDF o ZIP con facturas para procesamiento automático
-                  </CardDescription>
+                  <CardDescription>Sube archivos PDF o ZIP con facturas para procesamiento automático</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <FileUploadArea />
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="history" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Historial de Facturas</CardTitle>
-                  <CardDescription>
-                    Historial completo de facturas procesadas
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <UploadHistory />
-                </CardContent>
-              </Card>
+              <UploadHistory />
             </TabsContent>
           </Tabs>
         </div>
