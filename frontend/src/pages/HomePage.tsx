@@ -1,17 +1,17 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileUploadArea } from "@/components/file-upload-area"
-import { RecentInvoices } from "@/components/recent-invoices"
-import { InvoiceStatusSummary } from "@/components/invoice-status-summary"
-import { UploadHistory } from "@/components/upload-history"
+import { FileUploadArea } from "@/components/Home/file-upload-area"
+import { RecentInvoices } from "@/components/Home/recent-invoices"
+import { InvoiceStatusSummary } from "@/components/Home/invoice-status-summary"
+import { UploadHistory } from "@/components/Home/upload-history"
 import { FileText, UploadCloud } from 'lucide-react'
 
 export default function HomePage() {
   return (
     <div className="flex min-h-screen w-full flex-col">
       <main className="flex-1">
-        <div className="container grid items-start gap-6 pb-8 pt-6 md:py-8">
+        <div className="px-6 grid items-start gap-6 pb-8 pt-6 md:py-8">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Escaneo de Facturas</h1>
