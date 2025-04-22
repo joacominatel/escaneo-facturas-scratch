@@ -3,64 +3,38 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ArrowUpRight, CheckCircle, Clock, XCircle } from "lucide-react"
+import { useInvoicesList } from "@/hooks/api"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useEffect } from "react"
 
-type InvoiceStatus = "processed" | "pending" | "rejected"
-
-interface Invoice {
-  id: string
-  number: string
-  date: string
-  amount: string
-  status: InvoiceStatus
-}
-
-const recentInvoices: Invoice[] = [
-  {
-    id: "INV-001",
-    number: "F-2023-0123",
-    date: "2023-04-22",
-    amount: "1,245.00 €",
-    status: "processed",
-  },
-  {
-    id: "INV-002",
-    number: "F-2023-0124",
-    date: "2023-04-22",
-    amount: "845.50 €",
-    status: "processed",
-  },
-  {
-    id: "INV-003",
-    number: "F-2023-0125",
-    date: "2023-04-21",
-    amount: "1,045.75 €",
-    status: "pending",
-  },
-  {
-    id: "INV-004",
-    number: "F-2023-0126",
-    date: "2023-04-21",
-    amount: "2,345.00 €",
-    status: "rejected",
-  },
-  {
-    id: "INV-005",
-    number: "F-2023-0127",
-    date: "2023-04-20",
-    amount: "545.25 €",
-    status: "processed",
-  },
-]
+type InvoiceStatus = "processed" | "waiting_validation" | "processing" | "failed" | "rejected"
 
 export function RecentInvoices() {
+  const { invoices, isLoading, error, updateParams } = useInvoicesList({
+    per_page: 5,
+  })
+
+  useEffect(() => {
+    // Actualizar cada 30 segundos
+    const interval = setInterval(() => {
+      updateParams({ per_page: 5 })
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [updateParams])
+
   const getStatusIcon = (status: InvoiceStatus) => {
     switch (status) {
       case "processed":
         return <CheckCircle className="h-4 w-4 text-green-500" />
-      case "pending":
+      case "waiting_validation":
+      case "processing":
         return <Clock className="h-4 w-4 text-amber-500" />
+      case "failed":
       case "rejected":
         return <XCircle className="h-4 w-4 text-red-500" />
+      default:
+        return <Clock className="h-4 w-4 text-amber-500" />
     }
   }
 
@@ -72,10 +46,22 @@ export function RecentInvoices() {
             Procesada
           </Badge>
         )
-      case "pending":
+      case "waiting_validation":
         return (
           <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
             Pendiente
+          </Badge>
+        )
+      case "processing":
+        return (
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+            En proceso
+          </Badge>
+        )
+      case "failed":
+        return (
+          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+            Fallida
           </Badge>
         )
       case "rejected":
@@ -84,25 +70,48 @@ export function RecentInvoices() {
             Rechazada
           </Badge>
         )
+      default:
+        return (
+          <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+            Desconocido
+          </Badge>
+        )
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-16 w-full" />
+        ))}
+      </div>
+    )
+  }
+
+  if (error || !invoices.length) {
+    return (
+      <div className="flex items-center justify-center h-[200px]">
+        <p className="text-muted-foreground">No hay facturas recientes</p>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        {recentInvoices.map((invoice) => (
+        {invoices.map((invoice) => (
           <div key={invoice.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
             <div className="flex items-center space-x-3">
-              {getStatusIcon(invoice.status)}
+              {getStatusIcon(invoice.status as InvoiceStatus)}
               <div>
-                <p className="text-sm font-medium">{invoice.number}</p>
-                <p className="text-xs text-muted-foreground">{invoice.date}</p>
+                <p className="text-sm font-medium">{invoice.filename}</p>
+                <p className="text-xs text-muted-foreground">{new Date(invoice.created_at).toLocaleDateString()}</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
               <div className="text-right">
-                <p className="text-sm font-medium">{invoice.amount}</p>
-                <div className="mt-1">{getStatusBadge(invoice.status)}</div>
+                <div className="mt-1">{getStatusBadge(invoice.status as InvoiceStatus)}</div>
               </div>
               <Button variant="ghost" size="icon" className="h-8 w-8">
                 <ArrowUpRight className="h-4 w-4" />

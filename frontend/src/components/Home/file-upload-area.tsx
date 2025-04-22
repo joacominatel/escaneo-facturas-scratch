@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { FileIcon, UploadCloud, X } from "lucide-react"
 import { toast } from "sonner"
+import { useInvoiceUpload } from "@/hooks/api"
 
 export function FileUploadArea() {
   const [files, setFiles] = useState<File[]>([])
-  const [uploading, setUploading] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const { uploadInvoices, isUploading, progress } = useInvoiceUpload()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -39,34 +39,10 @@ export function FileUploadArea() {
 
   const handleUpload = async () => {
     if (files.length === 0) return
-
-    setUploading(true)
-    setProgress(0)
-
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          return 100
-        }
-        return prev + 5
-      })
-    }, 200)
-
-    // Simulate API call
-    setTimeout(() => {
-      clearInterval(interval)
-      setProgress(100)
-
-      setTimeout(() => {
-        setUploading(false)
-        setFiles([])
-        toast("Subida completa", {
-          description: `Se han subido ${files.length} facturas para procesamiento`,
-        })
-      }, 500)
-    }, 3000)
+    const result = await uploadInvoices(files)
+    if (result) {
+      setFiles([])
+    }
   }
 
   return (
@@ -132,7 +108,7 @@ export function FileUploadArea() {
         </div>
       )}
 
-      {uploading && (
+      {isUploading && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm">Subiendo facturas...</span>
@@ -143,8 +119,8 @@ export function FileUploadArea() {
       )}
 
       <div className="flex justify-end">
-        <Button onClick={handleUpload} disabled={files.length === 0 || uploading}>
-          {uploading ? "Subiendo..." : "Subir Facturas"}
+        <Button onClick={handleUpload} disabled={files.length === 0 || isUploading}>
+          {isUploading ? "Subiendo..." : "Subir Facturas"}
         </Button>
       </div>
     </div>
