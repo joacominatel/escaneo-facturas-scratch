@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowUpRight, CheckCircle, Clock, RefreshCw, XCircle, Eye } from "lucide-react"
+import { ArrowUpRight, CheckCircle, Clock, RefreshCw, XCircle, Eye, Download } from "lucide-react"
 import { useInvoicesList, useInvoiceActions } from "@/hooks/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEffect } from "react"
@@ -20,6 +20,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { InvoiceDetailsModal } from "@/components/invoice-details-modal"
+// Importar la función de utilidad para descargar facturas
+import { downloadInvoice } from "@/lib/invoice-utils"
 
 type InvoiceStatus = "processed" | "waiting_validation" | "processing" | "failed" | "rejected"
 
@@ -209,6 +211,18 @@ export function RecentInvoices() {
                 onClick={() => handleViewDetails(invoice.id)}
               >
                 <Eye className="h-4 w-4" />
+              </Button>
+
+              {/* Añadir un botón de descarga en la sección de acciones de cada factura
+              Después del botón de Eye y antes del botón de ArrowUpRight: */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title="Descargar"
+                onClick={() => downloadInvoice(invoice.id, invoice.filename)}
+              >
+                <Download className="h-4 w-4" />
               </Button>
 
               {invoice.status === "waiting_validation" && (

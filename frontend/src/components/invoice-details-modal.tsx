@@ -1,19 +1,15 @@
 "use client"
 import { useEffect } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ErrorAlert } from "@/components/ui/error-alert"
 import { useInvoiceDetails } from "@/hooks/api/useInvoiceDetails"
-import { CheckCircle, Clock, XCircle } from 'lucide-react'
+import { CheckCircle, Clock, XCircle, Download } from "lucide-react"
+import { downloadInvoice } from "@/lib/invoice-utils"
+import { Button } from "@/components/ui/button"
 
 interface InvoiceDetailsModalProps {
   invoiceId: number | null
@@ -30,7 +26,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
     }
   }, [open, invoiceId, fetchInvoiceDetails])
 
-  const formatCurrency = (amount: number, currency: string = "ARS") => {
+  const formatCurrency = (amount: number, currency = "ARS") => {
     return new Intl.NumberFormat("es-ES", {
       style: "currency",
       currency: currency,
@@ -96,18 +92,18 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
   // Agrupar los números de publicidad de todos los items
   const getAllAdvertisingNumbers = () => {
     if (!details?.final_data?.items) return []
-    
+
     const allNumbers: string[] = []
-    details.final_data.items.forEach(item => {
+    details.final_data.items.forEach((item) => {
       if (item.advertising_numbers) {
-        item.advertising_numbers.forEach(number => {
+        item.advertising_numbers.forEach((number) => {
           if (!allNumbers.includes(number)) {
             allNumbers.push(number)
           }
         })
       }
     })
-    
+
     return allNumbers
   }
 
@@ -146,6 +142,15 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
           <div className="flex items-center gap-2">
             {getStatusIcon(status)}
             {getStatusBadge(status)}
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-2"
+              onClick={() => downloadInvoice(details.invoice_id, `factura-${final_data.invoice_number}.pdf`)}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Descargar
+            </Button>
           </div>
         </div>
 
@@ -226,9 +231,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Detalles de la Factura</DialogTitle>
-          <DialogDescription>
-            Información detallada de la factura y sus items
-          </DialogDescription>
+          <DialogDescription>Información detallada de la factura y sus items</DialogDescription>
         </DialogHeader>
         {renderContent()}
       </DialogContent>
