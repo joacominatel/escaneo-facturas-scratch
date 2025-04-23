@@ -249,7 +249,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Detalles de la Factura</DialogTitle>
           <DialogDescription>Información detallada de la factura y sus items</DialogDescription>
