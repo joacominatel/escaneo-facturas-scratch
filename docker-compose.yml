@@ -1,4 +1,20 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: frontend.Dockerfile
+      args:
+        VITE_BACKEND_URL_ARG: http://backend:8010
+    container_name: vite_frontend
+    ports:
+      # Mapea el puerto 5173 (o el que prefieras) de tu máquina host
+      # al puerto 80 dentro del contenedor (donde escucha Nginx)
+      - "5173:80"
+    networks:
+      - backend_net
+    depends_on:
+      - backend # Opcional: indica que el frontend depende del backend
+
   backend:
     build:
       context: .
