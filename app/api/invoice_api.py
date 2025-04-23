@@ -59,7 +59,8 @@ class InvoiceDetailAPI(MethodView):
         return jsonify({
             "invoice_id": invoice.id,
             "status": invoice.status,
-            "final_data": invoice.final_data
+            "final_data": invoice.final_data,
+            "preview": invoice.preview_data,
         }), 200
 
 # POST /api/invoices/ocr con uno o más archivos
