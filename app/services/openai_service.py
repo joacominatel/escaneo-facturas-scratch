@@ -53,3 +53,8 @@ class OpenAIService:
             return json.loads(content)
         except json.JSONDecodeError:
             raise ValueError("Error al convertir la respuesta a JSON:\n" + content)
+        
+    def extract_structured_data_and_raw(self, raw_text: str) -> tuple[dict, str]:
+        structured_data = self.extract_structured_data(raw_text)
+        raw_response = self.summarize_invoice_text(raw_text)
+        return structured_data, raw_response
