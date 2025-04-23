@@ -4,7 +4,7 @@ services:
       context: ./frontend
       dockerfile: frontend.Dockerfile
       args:
-        VITE_BACKEND_URL_ARG: http://backend:8010
+        VITE_BACKEND_URL_ARG: http://localhost:8010
     container_name: vite_frontend
     ports:
       # Mapea el puerto 5173 (o el que prefieras) de tu máquina host
