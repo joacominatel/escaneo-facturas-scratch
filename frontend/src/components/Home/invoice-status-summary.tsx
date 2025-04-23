@@ -1,18 +1,44 @@
-"use client"
+"use client";
 
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { useInvoicesSummary } from "@/hooks/api"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Cell,
+} from "recharts";
+import { useInvoicesSummary } from "@/hooks/api";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+// Colores para los diferentes estados
+const statusColors = {
+  processed: "#a7f3d0", // Verde pastel
+  waiting_validation: "#fde68a", // Ámbar pastel
+  processing: "#bae6fd", // Azul pastel
+  failed: "#fecaca", // Rojo pastel
+  rejected: "#fbcfe8", // Rosa pastel
+};
+
+// Nombres legibles para los estados
+const statusNames = {
+  processed: "Procesadas",
+  waiting_validation: "Pendientes",
+  processing: "En proceso",
+  failed: "Fallidas",
+  rejected: "Rechazadas",
+};
 
 export function InvoiceStatusSummary() {
-  const { summary, isLoading, error, refreshSummary } = useInvoicesSummary()
+  const { summary, isLoading, error, refreshSummary } = useInvoicesSummary();
 
   if (isLoading) {
-    return <Skeleton className="h-[300px] w-full" />
+    return <Skeleton className="h-[300px] w-full" />;
   }
 
   if (error) {
@@ -22,63 +48,61 @@ export function InvoiceStatusSummary() {
         <AlertTitle>Error al cargar el resumen</AlertTitle>
         <AlertDescription className="flex flex-col gap-2">
           <p>{error}</p>
-          <Button variant="outline" size="sm" className="w-fit mt-2" onClick={() => refreshSummary()}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit mt-2"
+            onClick={() => refreshSummary()}
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Reintentar
           </Button>
         </AlertDescription>
       </Alert>
-    )
+    );
   }
 
-  // Provide default values if summary is null
-  const safeData = [
-    {
-      name: "Procesadas",
-      total: summary?.processed || 0,
-      color: "#16a34a",
-    },
-    {
-      name: "Pendientes",
-      total: summary?.waiting_validation || 0,
-      color: "#f59e0b",
-    },
-    {
-      name: "En proceso",
-      total: summary?.processing || 0,
-      color: "#3b82f6",
-    },
-    {
-      name: "Fallidas",
-      total: summary?.failed || 0,
-      color: "#dc2626",
-    },
-    {
-      name: "Rechazadas",
-      total: summary?.rejected || 0,
-      color: "#9f1239",
-    },
-  ]
+  // Transformar los datos para el gráfico
+  const chartData = summary
+    ? Object.entries(summary).map(([key, value]) => ({
+        name: statusNames[key as keyof typeof statusNames] || key,
+        value,
+        color: statusColors[key as keyof typeof statusColors] || "#94a3b8", // Color por defecto
+      }))
+    : [];
 
   return (
-    <ChartContainer
-      config={{
-        total: {
-          label: "Facturas",
-          color: "var(--color)",
-        },
-      }}
-      className="h-[300px]"
-    >
+    <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={safeData}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+        >
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="name" />
           <YAxis />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <Bar dataKey="total" radius={[4, 4, 0, 0]} className="fill-primary" fill="var(--color)" />
+          <Tooltip
+            content={({ active, payload }) => {
+              if (active && payload && payload.length) {
+                return (
+                  <div className="rounded-lg border bg-background p-2 shadow-md">
+                    <div className="grid grid-cols-2 gap-2">
+                      <span className="font-medium">{payload[0].name}:</span>
+                      <span className="font-bold">{payload[0].value}</span>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </ChartContainer>
-  )
+    </div>
+  );
 }
