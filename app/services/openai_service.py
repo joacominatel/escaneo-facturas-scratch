@@ -50,6 +50,12 @@ class OpenAIService:
         
         import json
         try:
+            # check if response starts with ```json
+            if content.startswith("```json"):
+                content = content[7:-3].strip()  # remove ```json and ``` at the end
+            elif content.startswith("```"):
+                content = content[3:-3].strip()  # remove ```
+
             return json.loads(content)
         except json.JSONDecodeError:
             raise ValueError("Error al convertir la respuesta a JSON:\n" + content)
