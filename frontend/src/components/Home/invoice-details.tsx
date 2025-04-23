@@ -8,7 +8,9 @@ import { Separator } from "@/components/ui/separator"
 interface InvoiceItem {
   description: string
   amount: number
-  advertising_numbers: string[]
+  advertising_numbers?: string[]
+  quantity?: number | null
+  unit_price?: number | null
 }
 
 interface InvoiceData {
@@ -19,7 +21,8 @@ interface InvoiceData {
   bill_to: string
   currency: string
   payment_terms: string
-  advertising_numbers: string[]
+  advertising_numbers?: string[]
+  operation_codes?: string[]
   items: InvoiceItem[]
 }
 
@@ -34,6 +37,26 @@ export function InvoiceDetails({ invoice }: InvoiceDetailsProps) {
       currency: invoice.currency,
     }).format(amount)
   }
+
+  // Agrupar los números de publicidad de todos los items si no hay un array de advertising_numbers en el nivel superior
+  const getAllAdvertisingNumbers = () => {
+    if (invoice.advertising_numbers) return invoice.advertising_numbers
+
+    const allNumbers: string[] = []
+    invoice.items.forEach((item) => {
+      if (item.advertising_numbers) {
+        item.advertising_numbers.forEach((number) => {
+          if (!allNumbers.includes(number)) {
+            allNumbers.push(number)
+          }
+        })
+      }
+    })
+
+    return allNumbers
+  }
+
+  const advertisingNumbers = getAllAdvertisingNumbers()
 
   return (
     <Card>
@@ -59,16 +82,18 @@ export function InvoiceDetails({ invoice }: InvoiceDetailsProps) {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Números de publicidad</h4>
-            <div className="flex flex-wrap gap-2">
-              {invoice.advertising_numbers.map((number, index) => (
-                <Badge key={index} variant="outline">
-                  {number}
-                </Badge>
-              ))}
+          {advertisingNumbers.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Números de publicidad</h4>
+              <div className="flex flex-wrap gap-2">
+                {advertisingNumbers.map((number, index) => (
+                  <Badge key={index} variant="outline">
+                    {number}
+                  </Badge>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <Separator />
@@ -88,13 +113,15 @@ export function InvoiceDetails({ invoice }: InvoiceDetailsProps) {
                 <TableRow key={index}>
                   <TableCell>{item.description}</TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {item.advertising_numbers.map((number, i) => (
-                        <Badge key={i} variant="outline" className="text-xs">
-                          {number}
-                        </Badge>
-                      ))}
-                    </div>
+                    {item.advertising_numbers && (
+                      <div className="flex flex-wrap gap-1">
+                        {item.advertising_numbers.map((number, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">
+                            {number}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
                 </TableRow>

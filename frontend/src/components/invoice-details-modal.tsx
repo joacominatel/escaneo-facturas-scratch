@@ -1,4 +1,5 @@
 "use client"
+
 import { useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
@@ -7,7 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ErrorAlert } from "@/components/ui/error-alert"
 import { useInvoiceDetails } from "@/hooks/api/useInvoiceDetails"
-import { CheckCircle, Clock, XCircle, Download } from "lucide-react"
+import { CheckCircle, Clock, XCircle, Download } from 'lucide-react'
 import { downloadInvoice } from "@/lib/invoice-utils"
 import { Button } from "@/components/ui/button"
 
@@ -89,12 +90,21 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
     }
   }
 
+  // Obtener los datos de la factura (ya sea de final_data o preview)
+  const getInvoiceData = () => {
+    if (!details) return null
+    
+    // Si final_data existe, usarlo; de lo contrario, usar preview
+    return details.final_data || details.preview
+  }
+
   // Agrupar los números de publicidad de todos los items
   const getAllAdvertisingNumbers = () => {
-    if (!details?.final_data?.items) return []
+    const invoiceData = getInvoiceData()
+    if (!invoiceData?.items) return []
 
     const allNumbers: string[] = []
-    details.final_data.items.forEach((item) => {
+    invoiceData.items.forEach((item) => {
       if (item.advertising_numbers) {
         item.advertising_numbers.forEach((number) => {
           if (!allNumbers.includes(number)) {
@@ -127,16 +137,27 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
       return <p className="text-center py-4 text-muted-foreground">No se encontraron detalles de la factura</p>
     }
 
-    const { final_data, status } = details
+    const invoiceData = getInvoiceData()
+    if (!invoiceData) {
+      return <p className="text-center py-4 text-muted-foreground">No hay datos disponibles para esta factura</p>
+    }
+
+    const { status } = details
     const advertisingNumbers = getAllAdvertisingNumbers()
+    const dataSource = details.final_data ? "final" : "preview"
 
     return (
       <div className="space-y-6 py-4 max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold">Factura #{final_data.invoice_number}</h3>
+            <h3 className="text-lg font-semibold">Factura #{invoiceData.invoice_number}</h3>
             <p className="text-sm text-muted-foreground">
-              {final_data.date} • {final_data.payment_terms}
+              {invoiceData.date} • {invoiceData.payment_terms}
+              {dataSource === "preview" && (
+                <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 border-blue-200">
+                  Vista previa
+                </Badge>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -146,7 +167,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
               variant="outline"
               size="sm"
               className="ml-2"
-              onClick={() => downloadInvoice(details.invoice_id, `factura-${final_data.invoice_number}.pdf`)}
+              onClick={() => downloadInvoice(details.invoice_id, `factura-${invoiceData.invoice_number}.pdf`)}
             >
               <Download className="h-4 w-4 mr-2" />
               Descargar
@@ -159,11 +180,11 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
             <h4 className="text-sm font-medium">Información general</h4>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="text-muted-foreground">Cliente:</div>
-              <div>{final_data.bill_to}</div>
+              <div>{invoiceData.bill_to}</div>
               <div className="text-muted-foreground">Moneda:</div>
-              <div>{final_data.currency}</div>
+              <div>{invoiceData.currency}</div>
               <div className="text-muted-foreground">Total:</div>
-              <div className="font-semibold">{formatCurrency(final_data.amount_total, final_data.currency)}</div>
+              <div className="font-semibold">{formatCurrency(invoiceData.amount_total, invoiceData.currency)}</div>
             </div>
           </div>
 
@@ -194,7 +215,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
               </TableRow>
             </TableHeader>
             <TableBody>
-              {final_data.items.map((item, index) => (
+              {invoiceData.items.map((item, index) => (
                 <TableRow key={index}>
                   <TableCell>{item.description}</TableCell>
                   <TableCell>
@@ -208,7 +229,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.amount, final_data.currency)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(item.amount, invoiceData.currency)}</TableCell>
                 </TableRow>
               ))}
               <TableRow>
@@ -216,7 +237,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
                   Total
                 </TableCell>
                 <TableCell className="text-right font-bold">
-                  {formatCurrency(final_data.amount_total, final_data.currency)}
+                  {formatCurrency(invoiceData.amount_total, invoiceData.currency)}
                 </TableCell>
               </TableRow>
             </TableBody>

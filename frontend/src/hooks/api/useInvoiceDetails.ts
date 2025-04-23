@@ -12,17 +12,20 @@ interface InvoiceItem {
   unit_price?: number | null
 }
 
+interface InvoiceData {
+  invoice_number: string
+  amount_total: number
+  date: string
+  bill_to: string
+  currency: string
+  payment_terms: string
+  operation_codes?: string[]
+  items: InvoiceItem[]
+}
+
 interface InvoiceDetails {
-  final_data: {
-    invoice_number: string
-    amount_total: number
-    date: string
-    bill_to: string
-    currency: string
-    payment_terms: string
-    operation_codes: string[]
-    items: InvoiceItem[]
-  }
+  final_data: InvoiceData | null
+  preview: InvoiceData | null
   invoice_id: number
   status: string
 }
