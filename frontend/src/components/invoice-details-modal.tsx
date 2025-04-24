@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ErrorAlert } from "@/components/ui/error-alert"
 import { useInvoiceDetails } from "@/hooks/api/useInvoiceDetails"
-import { Download, ArrowRight } from "lucide-react"
+import { Download, ArrowRight } from 'lucide-react'
 import { downloadInvoice } from "@/lib/invoice-utils"
 import { Button } from "@/components/ui/button"
 import { getStatusIcon, getStatusBadgeClassNames, getStatusLabel } from "@/lib/status-utils"
