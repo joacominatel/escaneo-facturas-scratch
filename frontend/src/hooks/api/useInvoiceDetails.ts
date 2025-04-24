@@ -28,6 +28,7 @@ interface InvoiceDetails {
   preview: InvoiceData | null
   invoice_id: number
   status: string
+  original_invoice_id?: number | null // Added field for duplicated invoices
 }
 
 // Tipo para la caché
