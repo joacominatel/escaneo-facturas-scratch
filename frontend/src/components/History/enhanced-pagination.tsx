@@ -1,106 +1,115 @@
 "use client"
 
-import { useCallback } from "react"
-import { toast } from "sonner"
 import {
   Pagination,
   PaginationContent,
+  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
-import { cn } from "@/lib/utils"
 
 interface EnhancedPaginationProps {
   currentPage: number
   totalPages: number
   onPageChange: (page: number) => void
-  className?: string
 }
 
-export function EnhancedPagination({ currentPage, totalPages, onPageChange, className }: EnhancedPaginationProps) {
-  const handlePageChange = useCallback(
-    (page: number) => {
-      if (page !== currentPage) {
-        onPageChange(page)
-        toast.success(`Página ${page}`, {
-          description: `Mostrando página ${page} de ${totalPages}`,
-          duration: 2000,
-        })
+export function EnhancedPagination({ 
+  currentPage, 
+  totalPages, 
+  onPageChange 
+}: EnhancedPaginationProps) {
+  // No pagination needed if there's only one page
+  if (totalPages <= 1) {
+    return null
+  }
+
+  const renderPaginationItems = () => {
+    const items = []
+    const maxVisible = 5
+    const halfVisible = Math.floor(maxVisible / 2)
+    
+    let startPage = Math.max(1, currentPage - halfVisible)
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1)
+    
+    if (endPage - startPage + 1 < maxVisible) {
+      startPage = Math.max(1, endPage - maxVisible + 1)
+    }
+    
+    // Add first page
+    if (startPage > 1) {
+      items.push(
+        <PaginationItem key="first">
+          <PaginationLink onClick={() => onPageChange(1)}>1</PaginationLink>
+        </PaginationItem>
+      )
+      
+      // Add ellipsis if needed
+      if (startPage > 2) {
+        items.push(
+          <PaginationItem key="ellipsis-start">
+            <PaginationEllipsis />
+          </PaginationItem>
+        )
       }
-    },
-    [currentPage, onPageChange, totalPages],
-  )
-
-  // Generar array de páginas a mostrar
-  const getPageNumbers = useCallback(() => {
-    const pageNumbers: (number | "ellipsis")[] = []
-
-    // Siempre mostrar la primera página
-    pageNumbers.push(1)
-
-    // Calcular rango de páginas alrededor de la página actual
-    const rangeStart = Math.max(2, currentPage - 1)
-    const rangeEnd = Math.min(totalPages - 1, currentPage + 1)
-
-    // Añadir elipsis si hay un salto entre la primera página y el inicio del rango
-    if (rangeStart > 2) {
-      pageNumbers.push("ellipsis")
     }
-
-    // Añadir páginas del rango
-    for (let i = rangeStart; i <= rangeEnd; i++) {
-      pageNumbers.push(i)
+    
+    // Add page numbers
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <PaginationItem key={i}>
+          <PaginationLink
+            onClick={() => onPageChange(i)}
+            isActive={i === currentPage}
+          >
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      )
     }
-
-    // Añadir elipsis si hay un salto entre el final del rango y la última página
-    if (rangeEnd < totalPages - 1) {
-      pageNumbers.push("ellipsis")
+    
+    // Add ellipsis and last page if needed
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        items.push(
+          <PaginationItem key="ellipsis-end">
+            <PaginationEllipsis />
+          </PaginationItem>
+        )
+      }
+      
+      items.push(
+        <PaginationItem key="last">
+          <PaginationLink onClick={() => onPageChange(totalPages)}>
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>
+      )
     }
-
-    // Añadir la última página si hay más de una página
-    if (totalPages > 1) {
-      pageNumbers.push(totalPages)
-    }
-
-    return pageNumbers
-  }, [currentPage, totalPages])
-
-  const pageNumbers = getPageNumbers()
-
-  if (totalPages <= 1) return null
+    
+    return items
+  }
 
   return (
-    <Pagination className={cn("w-full flex justify-end", className)}>
+    <Pagination>
       <PaginationContent>
         <PaginationItem>
           <PaginationPrevious
-            onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-            className="transition-transform hover:-translate-x-1"
+            onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
+            className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
+            aria-disabled={currentPage <= 1}
           />
         </PaginationItem>
-
-        {pageNumbers.map((page, index) => (
-          <PaginationItem key={index}>
-            {page === "ellipsis" ? (
-              <span className="flex h-9 w-9 items-center justify-center text-sm">...</span>
-            ) : (
-              <PaginationLink
-                isActive={page === currentPage}
-                onClick={() => handlePageChange(page)}
-                className={cn("transition-all duration-200", page === currentPage ? "font-bold" : "hover:scale-110")}
-              >
-                {page}
-              </PaginationLink>
-            )}
-          </PaginationItem>
-        ))}
-
+        
+        {renderPaginationItems()}
+        
         <PaginationItem>
           <PaginationNext
-            onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-            className="transition-transform hover:translate-x-1"
+            onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
+            className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+            aria-disabled={currentPage >= totalPages}
           />
         </PaginationItem>
       </PaginationContent>
