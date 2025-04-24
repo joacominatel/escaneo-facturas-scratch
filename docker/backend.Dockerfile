@@ -5,6 +5,7 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+CMD ["flask", "db", "migrate", "-m", "--message", "Initial migration"]
 CMD ["flask", "db", "upgrade"]
 
 COPY . .

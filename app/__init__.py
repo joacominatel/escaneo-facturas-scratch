@@ -1,6 +1,6 @@
 from flask import Flask
 from app.core.config import Config
-from app.core.extensions import init_extensions
+from app.core.extensions import init_extensions, db
 from app.api.invoice_api import invoice_bp
 from app.api.invoice_confirm_api import invoice_confirm_bp
 from app.api.invoice_reject_api import invoice_reject_bp
@@ -20,6 +20,13 @@ def create_app():
     # Importar modelos aquí para que Flask-Migrate los detecte
     from app.models import Invoice
     from app.models import InvoiceLog
+    from app.models import InvoiceData
+    from app.models import InvoiceStatusSummary
+
+    with app.app_context():
+        InvoiceData.create_view()
+        InvoiceStatusSummary.create_view()
+        db.session.commit()
 
     # Registrar Blueprints
     app.register_blueprint(invoice_bp, url_prefix='/api/invoices')
