@@ -51,7 +51,7 @@ class InvoiceListAPI(MethodView):
             ]
         }
 
-        redis.setex(cache_key, 60, json.dumps(result))  # TTL = 60s
+        redis.setex(cache_key, 15, json.dumps(result))  # TTL = 60s
         return jsonify(result), 200
 
 invoice_list_bp.add_url_rule('/api/invoices/', view_func=InvoiceListAPI.as_view('invoice_list'), methods=['GET'])
