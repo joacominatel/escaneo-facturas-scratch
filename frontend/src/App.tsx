@@ -1,4 +1,5 @@
 import HomePage from "@/pages/HomePage"
+import { Toaster } from "sonner"
 
 function App() {
   return (
@@ -6,6 +7,7 @@ function App() {
       <main className="pt-4">
         <HomePage />
       </main>
+      <Toaster />
     </div>
   )
 }
