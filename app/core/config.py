@@ -8,3 +8,4 @@ class Config:
     DEBUG = os.getenv('FLASK_DEBUG', 'False') == 'True'
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    PORT = int(os.getenv('PORT', 8010))

@@ -24,6 +24,10 @@ def create_app():
     from app.models import InvoiceStatusSummary
 
     with app.app_context():
+        db.create_all()
+        db.session.commit()
+
+        # Crear vistas si no existen
         InvoiceData.create_view()
         InvoiceStatusSummary.create_view()
         db.session.commit()

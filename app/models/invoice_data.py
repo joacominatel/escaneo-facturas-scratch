@@ -17,6 +17,13 @@ class InvoiceData(db.Model):
     @staticmethod
     def create_view():
         # Definimos la consulta SQL de la vista
+        drop_query = """
+        DROP TABLE IF EXISTS invoices_data;
+        """
+        # Ejecutamos la consulta para crear la vista
+        db.session.execute(text(drop_query))
+        db.session.commit()
+
         view_query = """
         CREATE OR REPLACE VIEW invoices_data AS
         SELECT 
