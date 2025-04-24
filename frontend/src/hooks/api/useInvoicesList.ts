@@ -26,6 +26,8 @@ interface InvoicesListParams {
   status?: string
   search?: string // Cambiado de op_number a search para coincidir con la API
   date?: string
+  sort_by?: string
+  sort_order?: string
 }
 
 // Tipo para la caché

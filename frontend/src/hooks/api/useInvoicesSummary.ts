@@ -10,6 +10,7 @@ interface StatusSummary {
   processed: number
   failed: number
   rejected: number
+  duplicated: number
 }
 
 interface StatusSummaryResponse {
