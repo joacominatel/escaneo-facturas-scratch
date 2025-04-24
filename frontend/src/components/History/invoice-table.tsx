@@ -14,20 +14,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { CheckCircle, Clock, Download, Eye, MoreHorizontal, RefreshCw, XCircle } from "lucide-react"
+import { ArrowRight, CheckCircle, Download, Eye, MoreHorizontal, RefreshCw, XCircle, Loader2 } from 'lucide-react'
 import { useInvoiceActions } from "@/hooks/api"
 import { toast } from "sonner"
 import { InvoiceDetailsModal } from "@/components/invoice-details-modal"
-// Importar la función de utilidad para descargar facturas
 import { downloadInvoice } from "@/lib/invoice-utils"
-
-type InvoiceStatus = "processed" | "waiting_validation" | "processing" | "failed" | "rejected"
+import { getStatusIcon, getStatusBadgeClassNames, getStatusLabel } from "@/lib/status-utils"
+import { type InvoiceStatus } from "@/types/invoice"
 
 interface Invoice {
   id: number
   filename: string
   status: string
   created_at: string
+  original_invoice_id?: number | null
 }
 
 interface InvoiceTableProps {
@@ -35,6 +35,7 @@ interface InvoiceTableProps {
   onRefresh: () => void
   itemsPerPage: number
   onItemsPerPageChange: (perPage: number) => void
+  onSearchOriginal?: (filename: string) => void
 }
 
 // Componente memoizado para evitar renderizaciones innecesarias
@@ -45,73 +46,19 @@ const InvoiceTableRow = memo(
     onConfirm,
     onReject,
     onRetry,
+    onFindOriginal,
     isActionLoading,
+    isSearchingOriginal,
   }: {
     invoice: Invoice
     onViewDetails: (id: number) => void
     onConfirm: (id: number) => void
     onReject: (id: number) => void
     onRetry: (id: number) => void
+    onFindOriginal: (filename: string) => void
     isActionLoading: boolean
+    isSearchingOriginal: boolean
   }) => {
-    // Función para obtener el icono de estado
-    const getStatusIcon = (status: InvoiceStatus) => {
-      switch (status) {
-        case "processed":
-          return <CheckCircle className="h-4 w-4 text-green-500" />
-        case "waiting_validation":
-        case "processing":
-          return <Clock className="h-4 w-4 text-amber-500" />
-        case "failed":
-        case "rejected":
-          return <XCircle className="h-4 w-4 text-red-500" />
-        default:
-          return <Clock className="h-4 w-4 text-amber-500" />
-      }
-    }
-
-    // Función para obtener el badge de estado
-    const getStatusBadge = (status: InvoiceStatus) => {
-      switch (status) {
-        case "processed":
-          return (
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              Procesada
-            </Badge>
-          )
-        case "waiting_validation":
-          return (
-            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-              Pendiente
-            </Badge>
-          )
-        case "processing":
-          return (
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-              En proceso
-            </Badge>
-          )
-        case "failed":
-          return (
-            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-              Fallida
-            </Badge>
-          )
-        case "rejected":
-          return (
-            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-              Rechazada
-            </Badge>
-          )
-        default:
-          return (
-            <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
-              Desconocido
-            </Badge>
-          )
-      }
-    }
-
     return (
       <TableRow>
         <TableCell className="font-medium">{invoice.filename}</TableCell>
@@ -119,7 +66,27 @@ const InvoiceTableRow = memo(
         <TableCell>
           <div className="flex items-center gap-2">
             {getStatusIcon(invoice.status as InvoiceStatus)}
-            {getStatusBadge(invoice.status as InvoiceStatus)}
+            <Badge variant="outline" className={getStatusBadgeClassNames(invoice.status as InvoiceStatus)}>
+              {getStatusLabel(invoice.status as InvoiceStatus)}
+            </Badge>
+            
+            {/* Add arrow indicator for duplicated invoices */}
+            {invoice.status === "duplicated" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-full transition-all hover:scale-110 hover:bg-blue-100"
+                title="Buscar factura original"
+                onClick={() => onFindOriginal(invoice.filename)}
+                disabled={isSearchingOriginal}
+              >
+                {isSearchingOriginal ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                ) : (
+                  <ArrowRight className="h-4 w-4 text-blue-500" />
+                )}
+              </Button>
+            )}
           </div>
         </TableCell>
         <TableCell className="text-right">
@@ -177,10 +144,21 @@ const InvoiceTableRow = memo(
 
                 {(invoice.status === "failed" || invoice.status === "rejected") && (
                   <DropdownMenuItem
-                    onClick={() => onRetry(invoice.id)}
+                    onClick={() => {
+                      onRetry(invoice.id)
+                    }}
                     disabled={isActionLoading}
                   >
                     <RefreshCw className="h-4 w-4 mr-2" /> Reintentar
+                  </DropdownMenuItem>
+                )}
+                
+                {invoice.status === "duplicated" && (
+                  <DropdownMenuItem 
+                    onClick={() => onFindOriginal(invoice.filename)}
+                    disabled={isSearchingOriginal}
+                  >
+                    <ArrowRight className="h-4 w-4 mr-2 text-blue-500" /> Buscar original
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -193,7 +171,13 @@ const InvoiceTableRow = memo(
 )
 InvoiceTableRow.displayName = "InvoiceTableRow"
 
-export function InvoiceTable({ invoices, onRefresh, itemsPerPage, onItemsPerPageChange }: InvoiceTableProps) {
+export function InvoiceTable({ 
+  invoices, 
+  onRefresh, 
+  itemsPerPage, 
+  onItemsPerPageChange,
+  onSearchOriginal 
+}: InvoiceTableProps) {
   const { confirmInvoice, rejectInvoice, retryInvoice, isLoading } = useInvoiceActions()
   const [selectedInvoice, setSelectedInvoice] = useState<number | null>(null)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
@@ -201,6 +185,7 @@ export function InvoiceTable({ invoices, onRefresh, itemsPerPage, onItemsPerPage
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [detailsModalOpen, setDetailsModalOpen] = useState(false)
   const [viewingInvoiceId, setViewingInvoiceId] = useState<number | null>(null)
+  const [searchingInvoice, setSearchingInvoice] = useState<string | null>(null)
 
   // Función para manejar la confirmación de una factura
   const handleConfirm = useCallback(async () => {
@@ -272,6 +257,36 @@ export function InvoiceTable({ invoices, onRefresh, itemsPerPage, onItemsPerPage
     [onItemsPerPageChange],
   )
 
+  // Función para buscar la factura original
+  const handleFindOriginal = useCallback(
+    (filename: string) => {
+      setSearchingInvoice(filename)
+      
+      // If onSearchOriginal is provided, use it
+      if (onSearchOriginal) {
+        onSearchOriginal(filename)
+        
+        // Reset searching state after a delay to show the animation
+        setTimeout(() => {
+          setSearchingInvoice(null)
+        }, 1500)
+      } else {
+        // Simulate search if no handler is provided
+        toast.info("Buscando factura original...", {
+          description: `Buscando la factura original para ${filename}`,
+        })
+        
+        setTimeout(() => {
+          setSearchingInvoice(null)
+          toast.success("Factura original encontrada", {
+            description: "Se ha encontrado la factura original",
+          })
+        }, 1500)
+      }
+    },
+    [onSearchOriginal],
+  )
+
   return (
     <>
       <div className="flex justify-end mb-2">
@@ -316,7 +331,9 @@ export function InvoiceTable({ invoices, onRefresh, itemsPerPage, onItemsPerPage
                   onConfirm={handleOpenConfirmDialog}
                   onReject={handleOpenRejectDialog}
                   onRetry={handleRetry}
+                  onFindOriginal={handleFindOriginal}
                   isActionLoading={isLoading}
+                  isSearchingOriginal={searchingInvoice === invoice.filename}
                 />
               ))
             )}

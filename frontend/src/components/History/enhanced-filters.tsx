@@ -7,23 +7,32 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, RefreshCw, Search, X } from "lucide-react"
+import { CalendarIcon, RefreshCw, Search, X } from 'lucide-react'
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { useDebounce } from "@/hooks/useDebounce"
 import { Badge } from "@/components/ui/badge"
+import { getStatusLabel } from "@/lib/status-utils"
 
 interface EnhancedFiltersProps {
   onFiltersChange: (filters: Record<string, any>) => void
   onRefresh: () => void
+  initialSearch?: string
 }
 
-export function EnhancedFilters({ onFiltersChange, onRefresh }: EnhancedFiltersProps) {
-  const [searchTerm, setSearchTerm] = useState("")
+export function EnhancedFilters({ onFiltersChange, onRefresh, initialSearch = "" }: EnhancedFiltersProps) {
+  const [searchTerm, setSearchTerm] = useState(initialSearch)
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [date, setDate] = useState<Date | undefined>(undefined)
   const [activeFilters, setActiveFilters] = useState<string[]>([])
+
+  // Apply initial search if provided
+  useEffect(() => {
+    if (initialSearch) {
+      setSearchTerm(initialSearch)
+    }
+  }, [initialSearch])
 
   // Aplicar debounce al término de búsqueda
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
@@ -35,7 +44,7 @@ export function EnhancedFilters({ onFiltersChange, onRefresh }: EnhancedFiltersP
 
     if (statusFilter !== "all") {
       filters.status = statusFilter
-      newActiveFilters.push(`Estado: ${getStatusLabel(statusFilter)}`)
+      newActiveFilters.push(`Estado: ${getStatusLabel(statusFilter as any)}`)
     }
 
     if (date) {
@@ -52,23 +61,10 @@ export function EnhancedFilters({ onFiltersChange, onRefresh }: EnhancedFiltersP
     onFiltersChange(filters)
   }, [statusFilter, date, debouncedSearchTerm, onFiltersChange])
 
-  // Función para obtener la etiqueta legible del estado
-  const getStatusLabel = (status: string): string => {
-    const statusLabels: Record<string, string> = {
-      processed: "Procesadas",
-      waiting_validation: "Pendientes",
-      processing: "En proceso",
-      failed: "Fallidas",
-      rejected: "Rechazadas",
-      all: "Todos",
-    }
-    return statusLabels[status] || status
-  }
-
   // Función para manejar el cambio de estado
   const handleStatusChange = useCallback((value: string) => {
     setStatusFilter(value)
-    toast.success(`Filtro aplicado: ${getStatusLabel(value)}`)
+    toast.success(`Filtro aplicado: ${getStatusLabel(value as any)}`)
   }, [])
 
   // Función para manejar el cambio de fecha
@@ -146,6 +142,7 @@ export function EnhancedFilters({ onFiltersChange, onRefresh }: EnhancedFiltersP
               <SelectItem value="processing">En proceso</SelectItem>
               <SelectItem value="failed">Fallidas</SelectItem>
               <SelectItem value="rejected">Rechazadas</SelectItem>
+              <SelectItem value="duplicated">Duplicadas</SelectItem>
             </SelectContent>
           </Select>
 

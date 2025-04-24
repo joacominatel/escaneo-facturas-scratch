@@ -8,17 +8,21 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ErrorAlert } from "@/components/ui/error-alert"
 import { useInvoiceDetails } from "@/hooks/api/useInvoiceDetails"
-import { CheckCircle, Clock, XCircle, Download } from 'lucide-react'
+import { Download, ArrowRight } from "lucide-react"
 import { downloadInvoice } from "@/lib/invoice-utils"
 import { Button } from "@/components/ui/button"
+import { getStatusIcon, getStatusBadgeClassNames, getStatusLabel } from "@/lib/status-utils"
+import type { InvoiceStatus } from "@/types/invoice"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 interface InvoiceDetailsModalProps {
   invoiceId: number | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onViewOriginal?: (id: number) => void
 }
 
-export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDetailsModalProps) {
+export function InvoiceDetailsModal({ invoiceId, open, onOpenChange, onViewOriginal }: InvoiceDetailsModalProps) {
   const { details, isLoading, error, fetchInvoiceDetails } = useInvoiceDetails()
 
   useEffect(() => {
@@ -34,66 +38,10 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
     }).format(amount)
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "processed":
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case "waiting_validation":
-      case "processing":
-        return <Clock className="h-4 w-4 text-amber-500" />
-      case "failed":
-      case "rejected":
-        return <XCircle className="h-4 w-4 text-red-500" />
-      default:
-        return <Clock className="h-4 w-4 text-amber-500" />
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "processed":
-        return (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-            Procesada
-          </Badge>
-        )
-      case "waiting_validation":
-        return (
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-            Pendiente
-          </Badge>
-        )
-      case "processing":
-        return (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-            En proceso
-          </Badge>
-        )
-      case "failed":
-        return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-            Fallida
-          </Badge>
-        )
-      case "rejected":
-        return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-            Rechazada
-          </Badge>
-        )
-      default:
-        return (
-          <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
-            {status}
-          </Badge>
-        )
-    }
-  }
-
   // Obtener los datos de la factura (ya sea de final_data o preview)
   const getInvoiceData = () => {
     if (!details) return null
-    
+
     // Si final_data existe, usarlo; de lo contrario, usar preview
     return details.final_data || details.preview
   }
@@ -115,6 +63,12 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
     })
 
     return allNumbers
+  }
+
+  const handleViewOriginal = () => {
+    if (details?.original_invoice_id && onViewOriginal) {
+      onViewOriginal(details.original_invoice_id)
+    }
   }
 
   const renderContent = () => {
@@ -145,9 +99,29 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
     const { status } = details
     const advertisingNumbers = getAllAdvertisingNumbers()
     const dataSource = details.final_data ? "final" : "preview"
+    const isDuplicated = status === "duplicated"
 
     return (
       <div className="space-y-6 py-4 max-h-[80vh] overflow-y-auto">
+        {/* Mostrar alerta si es una factura duplicada */}
+        {isDuplicated && details.original_invoice_id && (
+          <Alert className="bg-blue-50 border-blue-200">
+            <AlertTitle className="flex items-center gap-2 text-blue-700">Factura duplicada</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>Esta factura ha sido identificada como duplicada.</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-2 border-blue-200 text-blue-700 hover:bg-blue-100"
+                onClick={handleViewOriginal}
+              >
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Ver factura original
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold">Factura #{invoiceData.invoice_number}</h3>
@@ -161,8 +135,10 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {getStatusIcon(status)}
-            {getStatusBadge(status)}
+            {getStatusIcon(status as InvoiceStatus)}
+            <Badge variant="outline" className={getStatusBadgeClassNames(status as InvoiceStatus)}>
+              {getStatusLabel(status as InvoiceStatus)}
+            </Badge>
             <Button
               variant="outline"
               size="sm"
