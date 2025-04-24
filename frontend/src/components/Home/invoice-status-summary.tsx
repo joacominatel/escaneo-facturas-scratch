@@ -1,29 +1,12 @@
-"use client";
+"use client"
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Cell,
-} from "recharts";
-import { useInvoicesSummary } from "@/hooks/api";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-
-// Colores para los diferentes estados
-const statusColors = {
-  processed: "#a7f3d0", // Verde pastel
-  waiting_validation: "#fde68a", // Ámbar pastel
-  processing: "#bae6fd", // Azul pastel
-  failed: "#fecaca", // Rojo pastel
-  rejected: "#fbcfe8", // Rosa pastel
-};
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell } from "recharts"
+import { useInvoicesSummary } from "@/hooks/api"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle, RefreshCw } from 'lucide-react'
+import { Button } from "@/components/ui/button"
+import { statusColors } from "@/lib/status-utils"
 
 // Nombres legibles para los estados
 const statusNames = {
@@ -32,13 +15,14 @@ const statusNames = {
   processing: "En proceso",
   failed: "Fallidas",
   rejected: "Rechazadas",
-};
+  duplicated: "Duplicadas",
+}
 
 export function InvoiceStatusSummary() {
-  const { summary, isLoading, error, refreshSummary } = useInvoicesSummary();
+  const { summary, isLoading, error, refreshSummary } = useInvoicesSummary()
 
   if (isLoading) {
-    return <Skeleton className="h-[300px] w-full" />;
+    return <Skeleton className="h-[300px] w-full" />
   }
 
   if (error) {
@@ -48,18 +32,13 @@ export function InvoiceStatusSummary() {
         <AlertTitle>Error al cargar el resumen</AlertTitle>
         <AlertDescription className="flex flex-col gap-2">
           <p>{error}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-fit mt-2"
-            onClick={() => refreshSummary()}
-          >
+          <Button variant="outline" size="sm" className="w-fit mt-2" onClick={() => refreshSummary()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Reintentar
           </Button>
         </AlertDescription>
       </Alert>
-    );
+    )
   }
 
   // Transformar los datos para el gráfico
@@ -67,17 +46,14 @@ export function InvoiceStatusSummary() {
     ? Object.entries(summary).map(([key, value]) => ({
         name: statusNames[key as keyof typeof statusNames] || key,
         value,
-        color: statusColors[key as keyof typeof statusColors] || "#94a3b8", // Color por defecto
+        color: statusColors[key as keyof typeof statusColors]?.color || "#94a3b8", // Color por defecto
       }))
-    : [];
+    : []
 
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={chartData}
-          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-        >
+        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="name" />
           <YAxis />
@@ -91,9 +67,9 @@ export function InvoiceStatusSummary() {
                       <span className="font-bold">{payload[0].value}</span>
                     </div>
                   </div>
-                );
+                )
               }
-              return null;
+              return null
             }}
           />
           <Bar dataKey="value" radius={[4, 4, 0, 0]}>
@@ -104,5 +80,5 @@ export function InvoiceStatusSummary() {
         </BarChart>
       </ResponsiveContainer>
     </div>
-  );
+  )
 }
