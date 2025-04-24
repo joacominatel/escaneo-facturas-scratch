@@ -190,6 +190,11 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
     [fetchInvoices, clearCache],
   )
 
+  const refreshInvoicesList = useCallback(() => {
+    fetchInvoices(params)
+  }
+    , [fetchInvoices, params])
+
   return {
     invoices,
     pagination,
@@ -198,5 +203,6 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
     updateParams,
     refreshInvoices,
     clearCache,
+    refreshInvoicesList,
   }
 }
