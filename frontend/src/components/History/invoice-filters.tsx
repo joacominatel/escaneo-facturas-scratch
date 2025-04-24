@@ -11,6 +11,7 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { useDebounce } from "@/hooks/useDebounce"
+import { toast } from "sonner"
 
 interface InvoiceFiltersProps {
   onFiltersChange: (filters: Record<string, any>) => void
@@ -21,7 +22,7 @@ export function InvoiceFilters({ onFiltersChange, onRefresh }: InvoiceFiltersPro
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [date, setDate] = useState<Date | undefined>(undefined)
-  
+
   // Aplicar debounce al término de búsqueda
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
 
@@ -36,9 +37,9 @@ export function InvoiceFilters({ onFiltersChange, onRefresh }: InvoiceFiltersPro
     if (date) {
       filters.date = format(date, "yyyy-MM-dd")
     }
-    
+
     if (debouncedSearchTerm.trim()) {
-      filters.op_number = debouncedSearchTerm.trim()
+      filters.search = debouncedSearchTerm.trim() // Cambiado de op_number a search
     }
 
     onFiltersChange(filters)
@@ -63,11 +64,11 @@ export function InvoiceFilters({ onFiltersChange, onRefresh }: InvoiceFiltersPro
           onChange={(e) => setSearchTerm(e.target.value)}
           className="h-9"
         />
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="h-9 px-3" 
-          onClick={() => setSearchTerm(searchTerm)} // Forzar actualización si es necesario
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 px-3"
+          onClick={() => setSearchTerm(searchTerm)}
         >
           <Search className="h-4 w-4" />
         </Button>
@@ -98,12 +99,7 @@ export function InvoiceFilters({ onFiltersChange, onRefresh }: InvoiceFiltersPro
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={handleDateChange}
-              initialFocus
-            />
+            <Calendar mode="single" selected={date} onSelect={handleDateChange} initialFocus />
             {date && (
               <div className="p-3 border-t border-border flex justify-end">
                 <Button variant="ghost" size="sm" onClick={() => handleDateChange(undefined)}>
@@ -114,7 +110,26 @@ export function InvoiceFilters({ onFiltersChange, onRefresh }: InvoiceFiltersPro
           </PopoverContent>
         </Popover>
 
-        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onRefresh} title="Actualizar">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-9 w-9 transition-transform hover:rotate-180 duration-500" 
+          onClick={() => {
+            const button = document.getElementById('refresh-button');
+            if (button) {
+              button.classList.add('animate-spin');
+              setTimeout(() => {
+                button.classList.remove('animate-spin');
+              }, 1000);
+            }
+            onRefresh();
+            toast.success("Filtros actualizados", {
+              description: "La lista de facturas ha sido actualizada"
+            });
+          }} 
+          title="Actualizar"
+          id="refresh-button"
+        >
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>

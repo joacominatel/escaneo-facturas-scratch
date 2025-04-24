@@ -1,22 +1,26 @@
+"use client"
+
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { InvoiceFilters } from "./invoice-filters"
 import { InvoiceTable } from "./invoice-table"
-import { InvoicePagination } from "./invoice-pagination"
 import { useInvoicesList } from "@/hooks/api"
 import { ErrorAlert } from "@/components/ui/error-alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDebounce } from "@/hooks/useDebounce"
 import { useThrottle } from "@/hooks/useThrottle"
+import { toast } from "sonner"
+import { EnhancedPagination } from "./enhanced-pagination"
+// Importar el nuevo componente de filtros
+import { EnhancedFilters } from "./enhanced-filters"
 
 export function UploadHistory() {
   // Estado para los filtros
   const [itemsPerPage, setItemsPerPage] = useState<number>(10)
   const [filters, setFilters] = useState<Record<string, any>>({})
-  
+
   // Aplicar debounce a los filtros para evitar múltiples solicitudes mientras el usuario cambia los filtros
   const debouncedFilters = useDebounce(filters, 500)
-  
+
   // Aplicar throttling a los cambios de elementos por página
   const throttledItemsPerPage = useThrottle(itemsPerPage, 1000)
 
@@ -31,13 +35,16 @@ export function UploadHistory() {
   }, [debouncedFilters, throttledItemsPerPage, updateParams])
 
   // Función para manejar el cambio de página
-  const handlePageChange = useCallback((page: number) => {
-    updateParams({ page })
-  }, [updateParams])
+  const handlePageChange = useCallback(
+    (page: number) => {
+      updateParams({ page })
+    },
+    [updateParams],
+  )
 
   // Función para manejar el cambio de filtros
   const handleFiltersChange = useCallback((newFilters: Record<string, any>) => {
-    setFilters(prev => {
+    setFilters((prev) => {
       // Solo actualizar si los filtros han cambiado
       if (JSON.stringify(prev) !== JSON.stringify(newFilters)) {
         return newFilters
@@ -51,9 +58,24 @@ export function UploadHistory() {
     setItemsPerPage(perPage)
   }, [])
 
-  // Función para refrescar los datos con limpieza de caché
+  // Actualizar la función handleRefresh para mostrar notificaciones
   const handleRefresh = useCallback(() => {
-    refreshInvoices(true) // true para limpiar la caché antes de refrescar
+    const button = document.getElementById("refresh-button")
+    if (button) {
+      button.classList.add("animate-spin")
+      setTimeout(() => {
+        button.classList.remove("animate-spin")
+      }, 1000)
+    }
+
+    toast.promise(
+      refreshInvoices(true), // true para limpiar la caché antes de refrescar
+      {
+        loading: "Actualizando historial...",
+        success: "Historial actualizado correctamente",
+        error: "Error al actualizar el historial",
+      },
+    )
   }, [refreshInvoices])
 
   // Renderizar el estado de carga
@@ -82,10 +104,11 @@ export function UploadHistory() {
         <CardDescription>Historial completo de facturas procesadas</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <InvoiceFilters onFiltersChange={handleFiltersChange} onRefresh={handleRefresh} />
+        {/* Reemplazar los filtros existentes con los mejorados */}
+        <EnhancedFilters onFiltersChange={handleFiltersChange} onRefresh={handleRefresh} />
 
-        <InvoiceTable 
-          invoices={invoices} 
+        <InvoiceTable
+          invoices={invoices}
           onRefresh={handleRefresh}
           itemsPerPage={itemsPerPage}
           onItemsPerPageChange={handleItemsPerPageChange}
@@ -93,10 +116,10 @@ export function UploadHistory() {
       </CardContent>
       {pagination.pages > 1 && (
         <CardFooter>
-          <InvoicePagination 
-            currentPage={pagination.page} 
-            totalPages={pagination.pages} 
-            onPageChange={handlePageChange} 
+          <EnhancedPagination
+            currentPage={pagination.page}
+            totalPages={pagination.pages}
+            onPageChange={handlePageChange}
           />
         </CardFooter>
       )}

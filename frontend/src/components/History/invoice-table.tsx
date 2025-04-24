@@ -127,7 +127,7 @@ const InvoiceTableRow = memo(
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 transition-all hover:scale-110"
               title="Ver detalles"
               onClick={() => onViewDetails(invoice.id)}
             >
@@ -136,9 +136,14 @@ const InvoiceTableRow = memo(
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 transition-all hover:scale-110"
               title="Descargar"
-              onClick={() => downloadInvoice(invoice.id, invoice.filename)}
+              onClick={() => {
+                downloadInvoice(invoice.id, invoice.filename)
+                toast.success("Descarga iniciada", {
+                  description: `Descargando ${invoice.filename}`,
+                })
+              }}
             >
               <Download className="h-4 w-4" />
             </Button>
@@ -171,7 +176,10 @@ const InvoiceTableRow = memo(
                 )}
 
                 {(invoice.status === "failed" || invoice.status === "rejected") && (
-                  <DropdownMenuItem onClick={() => onRetry(invoice.id)} disabled={isActionLoading}>
+                  <DropdownMenuItem
+                    onClick={() => onRetry(invoice.id)}
+                    disabled={isActionLoading}
+                  >
                     <RefreshCw className="h-4 w-4 mr-2" /> Reintentar
                   </DropdownMenuItem>
                 )}
@@ -259,6 +267,7 @@ export function InvoiceTable({ invoices, onRefresh, itemsPerPage, onItemsPerPage
   const handleItemsPerPageChange = useCallback(
     (perPage: number) => {
       onItemsPerPageChange(perPage)
+      toast.success(`Mostrando ${perPage} facturas por página`)
     },
     [onItemsPerPageChange],
   )
