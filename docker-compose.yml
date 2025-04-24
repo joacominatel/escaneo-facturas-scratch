@@ -49,6 +49,11 @@ services:
       - .:/app
     networks:
       - backend_net
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
 
   mariadb:
     image: mariadb:10.11
