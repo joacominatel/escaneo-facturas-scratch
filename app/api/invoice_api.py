@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 
 from app.models.invoice import Invoice
+from sqlalchemy import func
 from app.core.extensions import db
 
 invoice_bp = Blueprint('invoice_bp', __name__)
@@ -28,6 +29,27 @@ class InvoiceOCRAPI(MethodView):
             filename = secure_filename(file.filename)
             filepath = os.path.join(upload_dir, filename)
             file.save(filepath)
+
+            # Check de existencia previa (por filename exacto)
+            existing_invoice = Invoice.query.filter(func.lower(Invoice.filename) == filename.lower()).first()
+
+            if existing_invoice:
+                # Registramos igual por historial, pero sin procesamiento
+                invoice = Invoice(
+                    filename=filename,
+                    file_path=filepath,
+                    status="duplicated"
+                )
+                db.session.add(invoice)
+                db.session.commit()
+
+                tmp_results.append({
+                    "invoice_id": invoice.id,
+                    "filename": invoice.filename,
+                    "status": invoice.status,
+                    "message": "Factura ya fue procesada anteriormente."
+                })
+                continue
 
             invoice = Invoice(
                 filename=filename,
