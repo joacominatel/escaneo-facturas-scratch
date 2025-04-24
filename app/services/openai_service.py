@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class OpenAIService:
-    def __init__(self, model="gpt-4"):
+    def __init__(self, model="gpt-4.1-nano-2025-04-14"):
         self.api_key = os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             raise ValueError("API key for OpenAI not found in environment variables.")
@@ -43,7 +43,7 @@ class OpenAIService:
                 {"role": "user", "content": prompt}
             ],
             temperature=0.2,
-            max_tokens=1000
+            max_tokens=4096
         )
 
         content = response.choices[0].message.content.strip()

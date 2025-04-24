@@ -23,6 +23,8 @@ def process_invoice_task(invoice_id):
 
             openai_service = OpenAIService()
             structured_data, raw_response = openai_service.extract_structured_data_and_raw(raw_text)
+            print("Structured Data:", structured_data)
+            print("Raw Response:", raw_response)
 
             invoice.preview_data = structured_data
             invoice.agent_response = raw_response
