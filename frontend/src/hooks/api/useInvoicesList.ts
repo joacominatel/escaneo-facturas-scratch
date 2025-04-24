@@ -19,11 +19,12 @@ interface InvoicesListResponse {
   invoices: Invoice[]
 }
 
+// Actualizar la interfaz InvoicesListParams para usar search en lugar de op_number
 interface InvoicesListParams {
   page?: number
   per_page?: number
   status?: string
-  op_number?: string
+  search?: string // Cambiado de op_number a search para coincidir con la API
   date?: string
 }
 
@@ -47,10 +48,10 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
   const [params, setParams] = useState<InvoicesListParams>(initialParams)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   // Referencia para la caché
   const cacheRef = useRef<Record<string, CacheEntry>>({})
-  
+
   // Función para generar la clave de caché
   const getCacheKey = (queryParams: InvoicesListParams): string => {
     return JSON.stringify(queryParams)
@@ -64,10 +65,10 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
   const fetchInvoices = useCallback(
     async (newParams?: InvoicesListParams) => {
       const queryParams = newParams || params
-      
+
       // Generar clave de caché
       const cacheKey = getCacheKey(queryParams)
-      
+
       // Verificar si hay datos en caché y si son válidos
       const cachedData = cacheRef.current[cacheKey]
       if (cachedData && isCacheValid(cachedData)) {
@@ -78,24 +79,26 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
           total: cachedData.data.total,
           pages: cachedData.data.pages,
         })
-        
+
         if (newParams) {
           setParams(newParams)
         }
-        
+
         return cachedData.data
       }
-      
+
       setIsLoading(true)
       setError(null)
 
       try {
+        // En la función fetchInvoices, actualizar la construcción del queryString
+        // Buscar esta sección y reemplazarla:
         // Construir query string
         const queryString = new URLSearchParams()
         if (queryParams.page) queryString.append("page", queryParams.page.toString())
         if (queryParams.per_page) queryString.append("per_page", queryParams.per_page.toString())
         if (queryParams.status) queryString.append("status", queryParams.status)
-        if (queryParams.op_number) queryString.append("op_number", queryParams.op_number)
+        if (queryParams.search) queryString.append("search", queryParams.search) // Cambiado de op_number a search
         if (queryParams.date) queryString.append("date", queryParams.date)
 
         const response = await fetch(getApiUrl(`api/invoices/?${queryString.toString()}`))
@@ -109,7 +112,7 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
         // Guardar en caché
         cacheRef.current[cacheKey] = {
           data,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         }
 
         setInvoices(data.invoices)
@@ -149,7 +152,7 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
     // Solo cargar datos si no hay datos en caché
     const cacheKey = getCacheKey(params)
     const cachedData = cacheRef.current[cacheKey]
-    
+
     if (!cachedData || !isCacheValid(cachedData)) {
       fetchInvoices()
     }
@@ -159,7 +162,7 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
   const updateParams = useCallback(
     (newParams: InvoicesListParams) => {
       const updatedParams = { ...params, ...newParams }
-      
+
       // Evitar actualizaciones innecesarias si los parámetros son iguales
       if (JSON.stringify(updatedParams) !== JSON.stringify(params)) {
         setParams(updatedParams)
@@ -175,12 +178,15 @@ export function useInvoicesList(initialParams: InvoicesListParams = {}) {
   }, [])
 
   // Función para refrescar los datos con limpieza de caché opcional
-  const refreshInvoices = useCallback((clearCacheBeforeRefresh = false) => {
-    if (clearCacheBeforeRefresh) {
-      clearCache()
-    }
-    return fetchInvoices()
-  }, [fetchInvoices, clearCache])
+  const refreshInvoices = useCallback(
+    (clearCacheBeforeRefresh = false) => {
+      if (clearCacheBeforeRefresh) {
+        clearCache()
+      }
+      return fetchInvoices()
+    },
+    [fetchInvoices, clearCache],
+  )
 
   return {
     invoices,
