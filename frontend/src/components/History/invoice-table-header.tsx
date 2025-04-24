@@ -3,6 +3,7 @@
 import { TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ArrowDown, ArrowUp } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface SortableHeaderProps {
   label: string
@@ -45,16 +46,32 @@ interface InvoiceTableHeaderProps {
   currentSort: string
   currentOrder: "asc" | "desc"
   onSort: (field: string) => void
+  selectionMode?: boolean
+  allSelected?: boolean
+  onToggleSelectAll?: () => void
 }
 
 export function InvoiceTableHeader({
   currentSort,
   currentOrder,
-  onSort
+  onSort,
+  selectionMode = false,
+  allSelected = false,
+  onToggleSelectAll
 }: InvoiceTableHeaderProps) {
   return (
     <TableHeader>
       <TableRow>
+        {selectionMode && (
+          <TableHead className="w-10 pr-0">
+            <Checkbox 
+              checked={allSelected}
+              onCheckedChange={onToggleSelectAll}
+              aria-label="Seleccionar todas las facturas"
+              className="translate-y-[2px]"
+            />
+          </TableHead>
+        )}
         <SortableHeader
           label="ID"
           field="id"

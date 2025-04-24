@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -9,9 +10,16 @@ import { EnhancedPagination } from "@/components/History/enhanced-pagination"
 import { InvoiceTableHeader } from "@/components/History/invoice-table-header"
 import { InvoiceRow } from "@/components/History/invoice-row"
 import { InvoiceStatus } from "@/components/History/invoice-status"
+import { BulkActionsBar } from "@/components/History/bulk-actions-bar"
 import { useInvoiceHistory } from "@/hooks/useInvoiceHistory"
+import { useBulkInvoiceActions } from "@/hooks/useBulkInvoiceActions"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 
 export function UploadHistory() {
+  // Estado para controlar modo de selección
+  const [selectionMode, setSelectionMode] = useState(false)
+
   const {
     // Data and state
     invoices,
@@ -34,11 +42,72 @@ export function UploadHistory() {
     handleRetry
   } = useInvoiceHistory()
 
+  // Hook para manejar selección múltiple y acciones en lote
+  const {
+    selectedInvoices,
+    isActionLoading,
+    hasSelection,
+    selectionCount,
+    toggleInvoice,
+    toggleSelectAll,
+    areAllSelected,
+    clearSelection,
+    confirmSelectedInvoices,
+    retrySelectedInvoices
+  } = useBulkInvoiceActions()
+
+  // Limpiar selección al cambiar de página o filtros
+  useEffect(() => {
+    clearSelection()
+  }, [params.page, params.status, params.search, params.date, clearSelection])
+
+  // Determinar si hay facturas en diferentes estados para habilitar acciones específicas
+  const hasWaitingValidation = useCallback(() => {
+    if (!invoices.length) return false
+    return selectedInvoices.some(id => {
+      const invoice = invoices.find(inv => inv.id === id)
+      return invoice?.status === "waiting_validation"
+    })
+  }, [invoices, selectedInvoices])
+
+  const hasFailedOrRejected = useCallback(() => {
+    if (!invoices.length) return false
+    return selectedInvoices.some(id => {
+      const invoice = invoices.find(inv => inv.id === id)
+      return invoice?.status === "failed" || invoice?.status === "rejected"
+    })
+  }, [invoices, selectedInvoices])
+
+  // Manejar seleccionar/deseleccionar todas las facturas visibles
+  const handleToggleSelectAll = useCallback(() => {
+    if (!invoices.length) return
+    toggleSelectAll(invoices.map(inv => inv.id))
+  }, [invoices, toggleSelectAll])
+
+  // Handler para manejar el refresh después de acciones en lote
+  const handleBulkActionComplete = useCallback(async () => {
+    // Esperar un poco antes de refrescar para que la API tenga tiempo de actualizar
+    setTimeout(() => {
+      handleRefresh()
+    }, 500)
+  }, [handleRefresh])
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Historial de Facturas</CardTitle>
-        <CardDescription>Ver y gestionar todas las facturas subidas al sistema</CardDescription>
+      <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <CardTitle>Historial de Facturas</CardTitle>
+          <CardDescription>Ver y gestionar todas las facturas subidas al sistema</CardDescription>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Switch 
+            id="selection-mode"
+            checked={selectionMode}
+            onCheckedChange={setSelectionMode}
+          />
+          <Label htmlFor="selection-mode">Modo selección</Label>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Enhanced Filters */}
@@ -56,6 +125,9 @@ export function UploadHistory() {
                 currentSort={params.sort_by}
                 currentOrder={params.sort_order}
                 onSort={handleSort}
+                selectionMode={selectionMode}
+                allSelected={invoices.length > 0 && areAllSelected(invoices.map(inv => inv.id))}
+                onToggleSelectAll={handleToggleSelectAll}
               />
               
               <TableBody>
@@ -73,6 +145,9 @@ export function UploadHistory() {
                       onViewDetails={handleViewDetails}
                       onRetry={handleRetry}
                       onRefresh={handleRefresh}
+                      selectionMode={selectionMode}
+                      isSelected={selectedInvoices.includes(invoice.id)}
+                      onToggleSelect={toggleInvoice}
                     />
                   ))
                 )}
@@ -122,6 +197,25 @@ export function UploadHistory() {
           handleViewDetails(id);
         }}
       />
+
+      {/* Barra de acciones en lote */}
+      {hasSelection && selectionMode && (
+        <BulkActionsBar
+          selectedCount={selectionCount}
+          onConfirm={async () => {
+            await confirmSelectedInvoices()
+            await handleBulkActionComplete()
+          }}
+          onRetry={async () => {
+            await retrySelectedInvoices()
+            await handleBulkActionComplete()
+          }}
+          onClear={clearSelection}
+          isLoading={isActionLoading}
+          hasWaitingValidation={hasWaitingValidation()}
+          hasFailedOrRejected={hasFailedOrRejected()}
+        />
+      )}
     </Card>
   )
 }

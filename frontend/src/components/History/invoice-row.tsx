@@ -9,6 +9,7 @@ import { getStatusIcon, getStatusBadgeClassNames, getStatusLabel } from "@/lib/s
 import { downloadInvoice } from "@/lib/invoice-utils"
 import { InvoiceActions } from "@/components/History/invoice-actions"
 import { toast } from "sonner"
+import { Checkbox } from "@/components/ui/checkbox"
 import type { InvoiceStatus } from "@/types/invoice"
 
 interface Invoice {
@@ -23,14 +24,34 @@ interface InvoiceRowProps {
   onViewDetails: (id: number) => void
   onRetry: (id: number) => void
   onRefresh: () => void
+  isSelected?: boolean
+  onToggleSelect?: (id: number) => void
+  selectionMode?: boolean
 }
 
-export const InvoiceRow = memo(function InvoiceRow({ invoice, onViewDetails, onRetry, onRefresh }: InvoiceRowProps) {
+export const InvoiceRow = memo(function InvoiceRow({ 
+  invoice, 
+  onViewDetails, 
+  onRetry, 
+  onRefresh,
+  isSelected = false,
+  onToggleSelect,
+  selectionMode = false
+}: InvoiceRowProps) {
   const isPending = invoice.status === "waiting_validation"
   const isFailedOrRejected = invoice.status === "failed" || invoice.status === "rejected"
 
   return (
-    <TableRow className="hover:bg-muted/50">
+    <TableRow className={`hover:bg-muted/50 ${isSelected ? 'bg-muted/30' : ''}`}>
+      {selectionMode && (
+        <TableCell className="w-10 pr-0">
+          <Checkbox 
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelect?.(invoice.id)}
+            aria-label={`Seleccionar factura ${invoice.id}`}
+          />
+        </TableCell>
+      )}
       <TableCell>{invoice.id}</TableCell>
       <TableCell className="max-w-[200px] truncate">{invoice.filename}</TableCell>
       <TableCell>
