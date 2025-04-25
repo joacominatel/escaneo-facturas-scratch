@@ -1,12 +1,22 @@
 // This file contains API functions to interact with the backend
 
 /**
+ * Helper function to get the API base URL
+ * Uses the same hostname but port 8010
+ */
+function getApiBaseUrl(): string {
+  // Get the current hostname (works in browser environments)
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  return `http://${hostname}:8010`;
+}
+
+/**
  * Fetches the summary of invoice statuses
  * @returns Promise with status counts
  */
 export async function fetchInvoiceStatusSummary(): Promise<Record<string, number>> {
     try {
-      const response = await fetch("/api/invoices/status-summary/")
+      const response = await fetch(`${getApiBaseUrl()}/api/invoices/status-summary/`)
   
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`)
@@ -25,7 +35,7 @@ export async function fetchInvoiceStatusSummary(): Promise<Record<string, number
    */
   export async function fetchInvoiceChartData(): Promise<any[]> {
     try {
-      const response = await fetch("/api/invoices/chart-data")
+      const response = await fetch(`${getApiBaseUrl()}/api/invoices/chart-data`)
   
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`)
@@ -45,7 +55,7 @@ export async function fetchInvoiceStatusSummary(): Promise<Record<string, number
    */
   export async function fetchRecentInvoices(limit = 5): Promise<any[]> {
     try {
-      const response = await fetch(`/api/invoices?per_page=${limit}`)
+      const response = await fetch(`${getApiBaseUrl()}/api/invoices?per_page=${limit}`)
   
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`)
@@ -66,7 +76,7 @@ export async function fetchInvoiceStatusSummary(): Promise<Record<string, number
    */
   export async function retryInvoiceProcessing(invoiceId: number): Promise<any> {
     try {
-      const response = await fetch(`/api/invoices/${invoiceId}/retry`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/invoices/${invoiceId}/retry`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -91,7 +101,7 @@ export async function fetchInvoiceStatusSummary(): Promise<Record<string, number
    */
   export async function downloadInvoice(invoiceId: number): Promise<Blob> {
     try {
-      const response = await fetch(`/api/invoices/${invoiceId}/download`)
+      const response = await fetch(`${getApiBaseUrl()}/api/invoices/${invoiceId}/download`)
   
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`)
@@ -103,4 +113,3 @@ export async function fetchInvoiceStatusSummary(): Promise<Record<string, number
       throw error
     }
   }
-  
