@@ -1,23 +1,29 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type React from "react"
+import "@/app/globals.css"
+import { Inter } from "next/font/google"
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "sonner"
 
-export const metadata: Metadata = {
-  title: "Invoice Scanner | Next.js",
-  description: "A simple invoice scanner app",
-};
+const inter = Inter({ subsets: ["latin"] })
+
+export const metadata = {
+  title: "Invoice Processing Dashboard",
+  description: "A comprehensive dashboard for monitoring and managing invoice processing",
+}
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="en">
-      <body
-        className={`antialiased`}
-      >
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <main className="min-h-screen bg-background">{children}</main>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }
