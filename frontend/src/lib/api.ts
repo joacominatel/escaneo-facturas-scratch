@@ -272,4 +272,74 @@ export async function downloadInvoice(invoiceId: number): Promise<Blob> {
   }
 }
 
+/**
+ * Fetches invoice history with filtering and pagination
+ * @param options Filter and pagination options
+ * @returns Promise with paginated invoice data
+ */
+export async function fetchInvoiceHistory({
+  page = 1,
+  perPage = 10,
+  status,
+  search,
+  dateFrom,
+  dateTo,
+  sortBy = "created_at",
+  sortOrder = "desc",
+}: {
+  page?: number
+  perPage?: number
+  status?: string
+  search?: string
+  dateFrom?: string
+  dateTo?: string
+  sortBy?: string
+  sortOrder?: "asc" | "desc"
+}): Promise<{
+  invoices: any[]
+  total: number
+  total_pages: number
+  page: number
+  per_page: number
+}> {
+  try {
+    // Build query parameters
+    const params = new URLSearchParams()
+    params.append("page", String(page))
+    params.append("per_page", String(perPage))
+
+    if (status) params.append("status", status)
+    if (search) params.append("search", search)
+    if (dateFrom) params.append("date_from", dateFrom)
+    if (dateTo) params.append("date_to", dateTo)
+    if (sortBy) params.append("sort_by", sortBy)
+    if (sortOrder) params.append("sort_order", sortOrder)
+
+    const response = await fetch(`${getApiBaseUrl()}/api/invoices/?${params.toString()}`)
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    // If the API doesn't return the expected format, transform it
+    if (!data.total_pages) {
+      const total = data.invoices?.length || 0
+      return {
+        invoices: data.invoices || [],
+        total,
+        total_pages: Math.ceil(total / perPage),
+        page,
+        per_page: perPage,
+      }
+    }
+
+    return data
+  } catch (error) {
+    console.error("Error fetching invoice history:", error)
+    throw error
+  }
+}
+
 export { getApiBaseUrl }
