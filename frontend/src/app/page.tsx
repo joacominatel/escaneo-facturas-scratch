@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
 import { InvoiceStatusCards } from "@/components/dashboard/invoice-status-cards"
-import { RecentInvoices } from "@/components/dashboard/recent-invoices"
+import { RecentInvoices } from "@/components/recentInvoices";
 import { InvoiceCharts } from "@/components/dashboard/invoice-charts"
 import { InvoiceFilters } from "@/components/dashboard/invoice-filters"
 import { FinancialMetrics } from "@/components/dashboard/financial-metrics"
