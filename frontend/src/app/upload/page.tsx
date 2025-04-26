@@ -5,7 +5,7 @@ import { CheckCircle, FileText, Upload, Search, RefreshCw, AlertCircle } from 'l
 
 export default function UploadPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 mx-auto p-4 md:p-6 lg:p-8 w-full">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">Upload Invoices</h1>
         <p className="text-muted-foreground">Upload your invoices for automatic processing</p>
