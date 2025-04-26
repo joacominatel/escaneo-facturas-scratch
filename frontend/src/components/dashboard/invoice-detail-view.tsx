@@ -8,15 +8,18 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DialogTitle } from "@/components/ui/dialog"
-import { Download, Check, X } from 'lucide-react'
+import { Download, Check, X, RotateCw } from 'lucide-react'
 import { fetchInvoiceDetails } from "@/lib/api"
 import { toast } from "sonner"
 import { cn, formatDate, formatCurrency } from "@/lib/utils"
 import { motion } from "framer-motion"
+import { useInvoiceActions } from "@/hooks/use-invoice-actions"
+import { RejectDialog } from "@/components/reject-dialog"
 
 interface InvoiceDetailViewProps {
   invoiceId: number
   onClose: () => void
+  onActionComplete?: () => void
   className?: string
 }
 
@@ -36,9 +39,19 @@ const getStatusBadge = (status: string) => {
   return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
 }
 
-export function InvoiceDetailView({ invoiceId, onClose, className }: InvoiceDetailViewProps) {
+export function InvoiceDetailView({ invoiceId, onClose, onActionComplete, className }: InvoiceDetailViewProps) {
   const [invoice, setInvoice] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
+  
+  const { 
+    confirmInvoice, 
+    rejectInvoice, 
+    retryInvoice,
+    isConfirming,
+    isRejecting,
+    isRetrying
+  } = useInvoiceActions()
 
   useEffect(() => {
     const getInvoiceDetails = async () => {
@@ -57,14 +70,38 @@ export function InvoiceDetailView({ invoiceId, onClose, className }: InvoiceDeta
     getInvoiceDetails()
   }, [invoiceId])
 
-  const handleConfirm = () => {
-    toast("Invoice confirmed successfully")
-    onClose()
+  const handleConfirm = async () => {
+    const result = await confirmInvoice(invoiceId)
+    if (result) {
+      // Update the invoice status locally
+      setInvoice((prev: any) => ({ ...prev, status: result.status }))
+      if (onActionComplete) {
+        onActionComplete()
+      }
+    }
   }
 
-  const handleReject = () => {
-    toast("Invoice rejected")
-    onClose()
+  const handleReject = async (reason: string) => {
+    setIsRejectDialogOpen(false)
+    const result = await rejectInvoice(invoiceId, reason)
+    if (result) {
+      // Update the invoice status locally
+      setInvoice((prev: any) => ({ ...prev, status: result.status }))
+      if (onActionComplete) {
+        onActionComplete()
+      }
+    }
+  }
+
+  const handleRetry = async () => {
+    const result = await retryInvoice(invoiceId)
+    if (result) {
+      // Update the invoice status locally
+      setInvoice((prev: any) => ({ ...prev, status: result.status }))
+      if (onActionComplete) {
+        onActionComplete()
+      }
+    }
   }
 
   if (isLoading) {
@@ -108,6 +145,11 @@ export function InvoiceDetailView({ invoiceId, onClose, className }: InvoiceDeta
   const invoiceData = invoice.preview || invoice.final_data || {}
   const items = invoiceData.items || []
   const operationCodes = invoiceData.operation_codes || []
+
+  // Determine which actions are available based on status
+  const canConfirm = invoice.status === "waiting_validation"
+  const canReject = invoice.status === "waiting_validation"
+  const canRetry = invoice.status === "failed" || invoice.status === "rejected"
 
   return (
     <motion.div
@@ -227,20 +269,42 @@ export function InvoiceDetailView({ invoiceId, onClose, className }: InvoiceDeta
             </TabsContent>
           </Tabs>
 
-          {invoice.status === "waiting_validation" && (
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={handleReject}>
+          <div className="flex justify-end gap-2 pt-4">
+            {canRetry && (
+              <Button variant="outline" onClick={handleRetry} disabled={isRetrying}>
+                <RotateCw className={cn("mr-2 h-4 w-4", isRetrying && "animate-spin")} />
+                {isRetrying ? "Retrying..." : "Retry Processing"}
+              </Button>
+            )}
+            {canReject && (
+              <Button 
+                variant="outline" 
+                onClick={() => setIsRejectDialogOpen(true)} 
+                disabled={isRejecting}
+              >
                 <X className="mr-2 h-4 w-4" />
-                Reject
+                {isRejecting ? "Rejecting..." : "Reject"}
               </Button>
-              <Button onClick={handleConfirm}>
+            )}
+            {canConfirm && (
+              <Button 
+                onClick={handleConfirm} 
+                disabled={isConfirming}
+              >
                 <Check className="mr-2 h-4 w-4" />
-                Confirm
+                {isConfirming ? "Confirming..." : "Confirm"}
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      <RejectDialog
+        isOpen={isRejectDialogOpen}
+        onClose={() => setIsRejectDialogOpen(false)}
+        onConfirm={handleReject}
+        invoiceId={invoiceId}
+      />
     </motion.div>
   )
 }

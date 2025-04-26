@@ -6,12 +6,14 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { Eye, Download, RotateCw, Check, X, ExternalLink } from "lucide-react"
-import { fetchRecentInvoices, downloadInvoice, retryInvoiceProcessing } from "@/lib/api"
+import { Eye, Download, RotateCw, Check, X, ExternalLink } from 'lucide-react'
+import { fetchRecentInvoices, downloadInvoice } from "@/lib/api"
 import { InvoiceDetailView } from "@/components/dashboard/invoice-detail-view"
 import { toast } from "sonner"
 import { cn, formatDate } from "@/lib/utils"
 import { motion } from "framer-motion"
+import { useInvoiceActions } from "@/hooks/use-invoice-actions"
+import { RejectDialog } from "@/components/reject-dialog"
 
 interface InvoiceStatus {
   label: string
@@ -38,25 +40,36 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
+  const [invoiceToReject, setInvoiceToReject] = useState<number | null>(null)
+
+  const { 
+    retryInvoice, 
+    confirmInvoice, 
+    rejectInvoice,
+    isRetrying,
+    isConfirming,
+    isRejecting
+  } = useInvoiceActions()
 
   useEffect(() => {
-    const getRecentInvoices = async () => {
-      try {
-        setIsLoading(true)
-        const data = await fetchRecentInvoices()
-        setInvoices(data)
-      } catch (err) {
-        console.error("Failed to fetch recent invoices:", err)
-        toast("Failed to load recent invoices. Using sample data instead.")
-        // Fallback data
-        setInvoices(generateSampleInvoices())
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    getRecentInvoices()
+    fetchInvoices()
   }, [])
+
+  const fetchInvoices = async () => {
+    try {
+      setIsLoading(true)
+      const data = await fetchRecentInvoices()
+      setInvoices(data)
+    } catch (err) {
+      console.error("Failed to fetch recent invoices:", err)
+      toast("Failed to load recent invoices. Using sample data instead.")
+      // Fallback data
+      setInvoices(generateSampleInvoices())
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Update the sample invoices to include the new status types
   const generateSampleInvoices = () => {
@@ -95,15 +108,42 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
   }
 
   const handleRetry = async (id: number) => {
-    try {
-      await retryInvoiceProcessing(id)
-      toast(`Retrying processing for invoice #${id}`)
-      // Refresh the list after retry
-      const data = await fetchRecentInvoices()
-      setInvoices(data)
-    } catch (error) {
-      toast("Failed to retry invoice processing")
+    const result = await retryInvoice(id)
+    if (result) {
+      // Update the invoice in the list
+      setInvoices(invoices.map(invoice => 
+        invoice.id === id ? { ...invoice, status: result.status } : invoice
+      ))
     }
+  }
+
+  const handleConfirm = async (id: number) => {
+    const result = await confirmInvoice(id)
+    if (result) {
+      // Update the invoice in the list
+      setInvoices(invoices.map(invoice => 
+        invoice.id === id ? { ...invoice, status: result.status } : invoice
+      ))
+    }
+  }
+
+  const handleRejectClick = (id: number) => {
+    setInvoiceToReject(id)
+    setIsRejectDialogOpen(true)
+  }
+
+  const handleReject = async (reason: string) => {
+    if (invoiceToReject) {
+      const result = await rejectInvoice(invoiceToReject, reason)
+      if (result) {
+        // Update the invoice in the list
+        setInvoices(invoices.map(invoice => 
+          invoice.id === invoiceToReject ? { ...invoice, status: result.status } : invoice
+        ))
+      }
+    }
+    setIsRejectDialogOpen(false)
+    setInvoiceToReject(null)
   }
 
   const handleDownload = async (id: number) => {
@@ -127,6 +167,11 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
   const handleView = (id: number) => {
     setSelectedInvoiceId(id)
     setIsDetailOpen(true)
+  }
+
+  const handleActionComplete = () => {
+    // Refresh the invoice list after an action is completed
+    fetchInvoices()
   }
 
   return (
@@ -182,7 +227,7 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
                 const getAvailableActions = (status: string) => {
                   const actionMap: Record<string, string[]> = {
                     processed: ["view", "download"],
-                    waiting_validation: ["confirm", "reject", "view", "download", "retry"],
+                    waiting_validation: ["confirm", "reject", "view", "download"],
                     processing: ["download"],
                     failed: ["view", "retry"],
                     rejected: ["retry", "view", "download"],
@@ -222,8 +267,9 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
                             size="icon"
                             className="h-8 w-8"
                             onClick={() => handleRetry(invoice.id)}
+                            disabled={isRetrying}
                           >
-                            <RotateCw className="h-4 w-4" />
+                            <RotateCw className={cn("h-4 w-4", isRetrying && invoice.id === invoiceToReject && "animate-spin")} />
                             <span className="sr-only">Retry</span>
                           </Button>
                         )}
@@ -265,9 +311,10 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-green-600"
-                            onClick={() => toast(`Confirming invoice #${invoice.id}`)}
+                            onClick={() => handleConfirm(invoice.id)}
+                            disabled={isConfirming}
                           >
-                            <Check className="h-4 w-4" />
+                            <Check className={cn("h-4 w-4", isConfirming && invoice.id === invoiceToReject && "animate-spin")} />
                             <span className="sr-only">Confirm</span>
                           </Button>
                         )}
@@ -276,7 +323,8 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-red-600"
-                            onClick={() => toast(`Rejecting invoice #${invoice.id}`)}
+                            onClick={() => handleRejectClick(invoice.id)}
+                            disabled={isRejecting}
                           >
                             <X className="h-4 w-4" />
                             <span className="sr-only">Reject</span>
@@ -307,10 +355,21 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="max-w-4xl p-0 max-h-[90vh] overflow-hidden">
           {selectedInvoiceId && (
-            <InvoiceDetailView invoiceId={selectedInvoiceId} onClose={() => setIsDetailOpen(false)} />
+            <InvoiceDetailView 
+              invoiceId={selectedInvoiceId} 
+              onClose={() => setIsDetailOpen(false)} 
+              onActionComplete={handleActionComplete}
+            />
           )}
         </DialogContent>
       </Dialog>
+
+      <RejectDialog
+        isOpen={isRejectDialogOpen}
+        onClose={() => setIsRejectDialogOpen(false)}
+        onConfirm={handleReject}
+        invoiceId={invoiceToReject || 0}
+      />
     </motion.div>
   )
 }
