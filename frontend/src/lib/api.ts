@@ -272,4 +272,4 @@ export async function downloadInvoice(invoiceId: number): Promise<Blob> {
   }
 }
 
-export { getApiBaseUrl}
+export { getApiBaseUrl }
