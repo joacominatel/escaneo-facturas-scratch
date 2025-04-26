@@ -271,3 +271,5 @@ export async function downloadInvoice(invoiceId: number): Promise<Blob> {
     throw error
   }
 }
+
+export { getApiBaseUrl}
