@@ -11,7 +11,7 @@ import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4 md:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 md:p-6 lg:p-8">
+      <div className="mx-auto bg-white dark:bg-slate-800 shadow-sm p-4 md:p-6 lg:p-8 w-full">
         <DashboardShell>
           <DashboardHeader heading="Invoice Dashboard" text="Monitor and manage your invoice processing workflow." />
           <Suspense fallback={<DashboardSkeleton />}>
