@@ -1,63 +1,41 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import { fetchInvoiceChartData } from "@/lib/api";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from "recharts"
+import { fetchInvoiceChartData } from "@/lib/api"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
 
 interface InvoiceChartsProps {
-  className?: string;
+  className?: string
 }
 
 export function InvoiceCharts({ className }: InvoiceChartsProps) {
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [chartData, setChartData] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const getChartData = async () => {
       try {
-        setIsLoading(true);
-        const data = await fetchInvoiceChartData();
-        setChartData(data);
+        setIsLoading(true)
+        const data = await fetchInvoiceChartData()
+        setChartData(data)
       } catch (err) {
-        console.error("Failed to fetch chart data:", err);
-        toast("Failed to load chart data. Using sample data instead.", {
-          description: "Failed to load chart data. Using sample data instead.",
-        });
+        console.error("Failed to fetch chart data:", err)
+        toast("Failed to load chart data. Using sample data instead.")
         // Fallback data
-        setChartData(generateSampleData());
+        setChartData(generateSampleData())
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
-    getChartData();
-  }, [toast]);
+    getChartData()
+  }, [toast])
 
   const generateSampleData = () => {
     return [
@@ -68,8 +46,8 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
       { date: "May", processed: 56, pending: 32, failed: 5 },
       { date: "Jun", processed: 55, pending: 27, failed: 4 },
       { date: "Jul", processed: 40, pending: 24, failed: 6 },
-    ];
-  };
+    ]
+  }
 
   return (
     <motion.div
@@ -87,9 +65,7 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
           <Card>
             <CardHeader>
               <CardTitle>Invoice Processing Trends</CardTitle>
-              <CardDescription>
-                Monthly breakdown of invoice processing status
-              </CardDescription>
+              <CardDescription>Monthly breakdown of invoice processing status</CardDescription>
             </CardHeader>
             <CardContent className="h-[300px] pt-4">
               {isLoading ? (
@@ -101,15 +77,27 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
                   config={{
                     processed: {
                       label: "Processed",
-                      color: "hsl(var(--chart-1))",
+                      color: "hsl(142, 76%, 87%)",
                     },
-                    pending: {
-                      label: "Pending",
-                      color: "hsl(var(--chart-2))",
+                    waiting_validation: {
+                      label: "Waiting Validation",
+                      color: "hsl(199, 89%, 86%)",
+                    },
+                    processing: {
+                      label: "Processing",
+                      color: "hsl(262, 83%, 86%)",
                     },
                     failed: {
                       label: "Failed",
-                      color: "hsl(var(--chart-3))",
+                      color: "hsl(0, 84%, 90%)",
+                    },
+                    rejected: {
+                      label: "Rejected",
+                      color: "hsl(31, 90%, 85%)",
+                    },
+                    duplicated: {
+                      label: "Duplicated",
+                      color: "hsl(45, 93%, 85%)",
                     },
                   }}
                 >
@@ -120,21 +108,12 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
                       <YAxis />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Legend />
-                      <Bar
-                        dataKey="processed"
-                        fill="var(--color-processed)"
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="pending"
-                        fill="var(--color-pending)"
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="failed"
-                        fill="var(--color-failed)"
-                        radius={[4, 4, 0, 0]}
-                      />
+                      <Bar dataKey="processed" fill="var(--color-processed)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="waiting_validation" fill="var(--color-waiting_validation)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="processing" fill="var(--color-processing)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="failed" fill="var(--color-failed)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="rejected" fill="var(--color-rejected)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="duplicated" fill="var(--color-duplicated)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -146,9 +125,7 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
           <Card>
             <CardHeader>
               <CardTitle>Processing Performance</CardTitle>
-              <CardDescription>
-                Trend analysis of invoice processing over time
-              </CardDescription>
+              <CardDescription>Trend analysis of invoice processing over time</CardDescription>
             </CardHeader>
             <CardContent className="h-[300px] pt-4">
               {isLoading ? (
@@ -160,15 +137,27 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
                   config={{
                     processed: {
                       label: "Processed",
-                      color: "hsl(var(--chart-1))",
+                      color: "hsl(142, 76%, 87%)",
                     },
-                    pending: {
-                      label: "Pending",
-                      color: "hsl(var(--chart-2))",
+                    waiting_validation: {
+                      label: "Waiting Validation",
+                      color: "hsl(199, 89%, 86%)",
+                    },
+                    processing: {
+                      label: "Processing",
+                      color: "hsl(262, 83%, 86%)",
                     },
                     failed: {
                       label: "Failed",
-                      color: "hsl(var(--chart-3))",
+                      color: "hsl(0, 84%, 90%)",
+                    },
+                    rejected: {
+                      label: "Rejected",
+                      color: "hsl(31, 90%, 85%)",
+                    },
+                    duplicated: {
+                      label: "Duplicated",
+                      color: "hsl(45, 93%, 85%)",
                     },
                   }}
                 >
@@ -179,24 +168,12 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
                       <YAxis />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="processed"
-                        stroke="var(--color-processed)"
-                        strokeWidth={2}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="pending"
-                        stroke="var(--color-pending)"
-                        strokeWidth={2}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="failed"
-                        stroke="var(--color-failed)"
-                        strokeWidth={2}
-                      />
+                      <Line type="monotone" dataKey="processed" stroke="var(--color-processed)" strokeWidth={2} />
+                      <Line type="monotone" dataKey="waiting_validation" stroke="var(--color-waiting_validation)" strokeWidth={2} />
+                      <Line type="monotone" dataKey="processing" stroke="var(--color-processing)" strokeWidth={2} />
+                      <Line type="monotone" dataKey="failed" stroke="var(--color-failed)" strokeWidth={2} />
+                      <Line type="monotone" dataKey="rejected" stroke="var(--color-rejected)" strokeWidth={2} />
+                      <Line type="monotone" dataKey="duplicated" stroke="var(--color-duplicated)" strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -206,5 +183,5 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
         </TabsContent>
       </Tabs>
     </motion.div>
-  );
+  )
 }

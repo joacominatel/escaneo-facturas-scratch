@@ -5,7 +5,7 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { FileCheck, FileWarning, FileClock, FileX } from "lucide-react"
+import { FileCheck, FileWarning, FileClock, FileX } from 'lucide-react'
 import { fetchInvoiceStatusSummary } from "@/lib/api"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -19,10 +19,11 @@ interface StatusCardProps {
   className?: string
 }
 
+// Update the StatusCard component to use better pastel colors
 function StatusCard({ title, value, icon, description, className }: StatusCardProps) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <Card className={cn("overflow-hidden", className)}>
+      <Card className={cn("overflow-hidden shadow-sm hover:shadow-md transition-shadow", className)}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">{title}</CardTitle>
           <div className="h-4 w-4 text-muted-foreground">{icon}</div>
@@ -83,42 +84,59 @@ export function InvoiceStatusCards() {
   }
 
   // Fallback data in case the API fails
+  // Update the status data to match the new status types
   const data = statusData || {
     processed: 124,
-    pending: 42,
+    waiting_validation: 32,
+    processing: 18,
     failed: 8,
     rejected: 15,
+    duplicated: 3,
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       <StatusCard
         title="Processed"
         value={data.processed || 0}
         icon={<FileCheck className="h-4 w-4" />}
-        description="Successfully processed invoices"
-        className="border-l-4 border-l-green-500"
+        description="Successfully processed"
+        className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800"
       />
       <StatusCard
-        title="Pending"
-        value={data.pending || 0}
+        title="Waiting Validation"
+        value={data.waiting_validation || 0}
         icon={<FileClock className="h-4 w-4" />}
-        description="Invoices awaiting processing"
-        className="border-l-4 border-l-yellow-500"
+        description="Awaiting validation"
+        className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800"
+      />
+      <StatusCard
+        title="Processing"
+        value={data.processing || 0}
+        icon={<FileClock className="h-4 w-4" />}
+        description="Currently processing"
+        className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800"
       />
       <StatusCard
         title="Failed"
         value={data.failed || 0}
         icon={<FileX className="h-4 w-4" />}
-        description="Failed processing attempts"
-        className="border-l-4 border-l-red-500"
+        description="Failed processing"
+        className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900 border-red-200 dark:border-red-800"
       />
       <StatusCard
         title="Rejected"
         value={data.rejected || 0}
         icon={<FileWarning className="h-4 w-4" />}
         description="Rejected by users"
-        className="border-l-4 border-l-orange-500"
+        className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border-orange-200 dark:border-orange-800"
+      />
+      <StatusCard
+        title="Duplicated"
+        value={data.duplicated || 0}
+        icon={<FileClock className="h-4 w-4" />}
+        description="Duplicate invoices"
+        className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800"
       />
     </div>
   )

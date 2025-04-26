@@ -90,9 +90,11 @@ export function InvoiceFilters() {
                       <SelectContent>
                         <SelectItem value="all">All</SelectItem>
                         <SelectItem value="processed">Processed</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="waiting_validation">Waiting Validation</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
                         <SelectItem value="failed">Failed</SelectItem>
                         <SelectItem value="rejected">Rejected</SelectItem>
+                        <SelectItem value="duplicated">Duplicated</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -111,7 +113,9 @@ export function InvoiceFilters() {
                     <Label>Date Range</Label>
                     <DatePickerWithRange
                       date={filters.dateRange}
-                      setDate={(range) => setFilters({ ...filters, dateRange: { from: range?.from, to: range?.to ?? undefined } })}
+                      setDate={(range) =>
+                        setFilters({ ...filters, dateRange: { from: range?.from, to: range?.to ?? undefined } })
+                      }
                     />
                   </div>
                 </div>
