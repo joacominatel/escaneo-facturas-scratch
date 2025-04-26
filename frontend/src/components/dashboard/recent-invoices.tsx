@@ -17,11 +17,14 @@ interface InvoiceStatus {
   variant: "default" | "outline" | "secondary" | "destructive" | null
 }
 
+// Update the status map to include all status types with appropriate styling
 const statusMap: Record<string, InvoiceStatus> = {
   processed: { label: "Processed", value: "processed", variant: "default" },
-  pending: { label: "Pending", value: "pending", variant: "secondary" },
+  waiting_validation: { label: "Waiting Validation", value: "waiting_validation", variant: "secondary" },
+  processing: { label: "Processing", value: "processing", variant: "secondary" },
   failed: { label: "Failed", value: "failed", variant: "destructive" },
   rejected: { label: "Rejected", value: "rejected", variant: "outline" },
+  duplicated: { label: "Duplicated", value: "duplicated", variant: "outline" },
 }
 
 interface RecentInvoicesProps {
@@ -31,7 +34,7 @@ interface RecentInvoicesProps {
 export function RecentInvoices({ className }: RecentInvoicesProps) {
   const [invoices, setInvoices] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  
+
   useEffect(() => {
     const getRecentInvoices = async () => {
       try {
@@ -51,6 +54,7 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
     getRecentInvoices()
   }, [toast])
 
+  // Update the sample invoices to include the new status types
   const generateSampleInvoices = () => {
     return [
       {
@@ -67,16 +71,23 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
         vendor: "Globex Inc",
         amount: 876.5,
         date: "2023-04-14",
-        status: "pending",
+        status: "waiting_validation",
       },
-      { id: 3, filename: "INV-2023-003.pdf", vendor: "Initech", amount: 2340.75, date: "2023-04-12", status: "failed" },
+      {
+        id: 3,
+        filename: "INV-2023-003.pdf",
+        vendor: "Initech",
+        amount: 2340.75,
+        date: "2023-04-12",
+        status: "failed",
+      },
       {
         id: 4,
         filename: "INV-2023-004.pdf",
         vendor: "Umbrella Corp",
         amount: 1120.25,
         date: "2023-04-10",
-        status: "processed",
+        status: "processing",
       },
       {
         id: 5,
@@ -84,7 +95,7 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
         vendor: "Stark Industries",
         amount: 4500.0,
         date: "2023-04-08",
-        status: "rejected",
+        status: "duplicated",
       },
     ]
   }
