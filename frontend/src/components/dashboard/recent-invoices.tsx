@@ -5,10 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Eye, Download, RotateCw } from "lucide-react"
-import { fetchRecentInvoices } from "@/lib/api"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Eye, Download, RotateCw } from 'lucide-react'
+import { fetchRecentInvoices, downloadInvoice, retryInvoiceProcessing } from "@/lib/api"
+import { InvoiceDetailView } from "@/components/dashboard/invoice-detail-view"
 import { toast } from "sonner"
-import { cn, formatDate, formatCurrency } from "@/lib/utils"
+import { cn, formatDate } from "@/lib/utils"
 import { motion } from "framer-motion"
 
 interface InvoiceStatus {
@@ -34,6 +36,8 @@ interface RecentInvoicesProps {
 export function RecentInvoices({ className }: RecentInvoicesProps) {
   const [invoices, setInvoices] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   useEffect(() => {
     const getRecentInvoices = async () => {
@@ -52,7 +56,7 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
     }
 
     getRecentInvoices()
-  }, [toast])
+  }, [])
 
   // Update the sample invoices to include the new status types
   const generateSampleInvoices = () => {
@@ -60,56 +64,69 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
       {
         id: 1,
         filename: "INV-2023-001.pdf",
-        vendor: "Acme Corp",
-        amount: 1250.0,
-        date: "2023-04-15",
+        created_at: "2023-04-15T10:30:00",
         status: "processed",
       },
       {
         id: 2,
         filename: "INV-2023-002.pdf",
-        vendor: "Globex Inc",
-        amount: 876.5,
-        date: "2023-04-14",
+        created_at: "2023-04-14T14:45:00",
         status: "waiting_validation",
       },
       {
         id: 3,
         filename: "INV-2023-003.pdf",
-        vendor: "Initech",
-        amount: 2340.75,
-        date: "2023-04-12",
+        created_at: "2023-04-12T09:15:00",
         status: "failed",
       },
       {
         id: 4,
         filename: "INV-2023-004.pdf",
-        vendor: "Umbrella Corp",
-        amount: 1120.25,
-        date: "2023-04-10",
+        created_at: "2023-04-10T16:20:00",
         status: "processing",
       },
       {
         id: 5,
         filename: "INV-2023-005.pdf",
-        vendor: "Stark Industries",
-        amount: 4500.0,
-        date: "2023-04-08",
+        created_at: "2023-04-08T11:05:00",
         status: "duplicated",
       },
     ]
   }
 
-  const handleRetry = (id: number) => {
-    toast(`Retrying processing for invoice #${id}`)
+  const handleRetry = async (id: number) => {
+    try {
+      await retryInvoiceProcessing(id)
+      toast(`Retrying processing for invoice #${id}`)
+      // Refresh the list after retry
+      const data = await fetchRecentInvoices()
+      setInvoices(data)
+    } catch (error) {
+      toast("Failed to retry invoice processing")
+    }
   }
 
-  const handleDownload = (id: number) => {
-    toast(`Downloading invoice #${id}`)
+  const handleDownload = async (id: number) => {
+    try {
+      const blob = await downloadInvoice(id)
+      // Create a download link
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.style.display = "none"
+      a.href = url
+      a.download = `invoice-${id}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      toast(`Downloading invoice #${id}`)
+    } catch (error) {
+      toast("Failed to download invoice")
+    }
   }
 
   const handleView = (id: number) => {
-    toast(`Opening invoice #${id} for viewing`)
+    setSelectedInvoiceId(id)
+    setIsDetailOpen(true)
   }
 
   return (
@@ -156,11 +173,10 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between text-muted-foreground">
-                    <div>{invoice.vendor}</div>
-                    <div>{formatCurrency(invoice.amount)}</div>
+                    <div>ID: {invoice.id}</div>
+                    <div>{formatDate(invoice.created_at)}</div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs text-muted-foreground">{formatDate(invoice.date)}</div>
+                  <div className="flex items-center justify-end">
                     <div className="flex space-x-2">
                       {invoice.status === "failed" && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRetry(invoice.id)}>
@@ -201,6 +217,17 @@ export function RecentInvoices({ className }: RecentInvoicesProps) {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="max-w-4xl p-0">
+          {selectedInvoiceId && (
+            <InvoiceDetailView
+              invoiceId={selectedInvoiceId}
+              onClose={() => setIsDetailOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }
