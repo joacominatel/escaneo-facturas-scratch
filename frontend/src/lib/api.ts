@@ -35,7 +35,7 @@ export async function fetchInvoiceStatusSummary(): Promise<Record<string, number
    */
   export async function fetchInvoiceChartData(): Promise<any[]> {
     try {
-      const response = await fetch(`${getApiBaseUrl()}/api/invoices/chart-data`)
+      const response = await fetch(`${getApiBaseUrl()}/api/invoices/status-summary`)
   
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`)
