@@ -127,7 +127,7 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
               <CardTitle>Processing Performance</CardTitle>
               <CardDescription>Trend analysis of invoice processing over time</CardDescription>
             </CardHeader>
-            <CardContent className="h-[300px] pt-4">
+            <CardContent className="pt-4">
               {isLoading ? (
                 <div className="flex h-full items-center justify-center">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
