@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DialogTitle } from "@/components/ui/dialog"
 import { Download, Check, X } from 'lucide-react'
 import { fetchInvoiceDetails } from "@/lib/api"
 import { toast } from "sonner"
@@ -31,12 +32,8 @@ const getStatusBadge = (status: string) => {
   }
 
   const statusInfo = statusMap[status] || { label: status, variant: "default" }
-  
-  return (
-    <Badge variant={statusInfo.variant}>
-      {statusInfo.label}
-    </Badge>
-  )
+
+  return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
 }
 
 export function InvoiceDetailView({ invoiceId, onClose, className }: InvoiceDetailViewProps) {
@@ -83,9 +80,11 @@ export function InvoiceDetailView({ invoiceId, onClose, className }: InvoiceDeta
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            {Array(5).fill(0).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
+            {Array(5)
+              .fill(0)
+              .map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
           </div>
         </CardContent>
       </Card>
@@ -118,12 +117,10 @@ export function InvoiceDetailView({ invoiceId, onClose, className }: InvoiceDeta
       transition={{ duration: 0.3 }}
       className={cn("w-full", className)}
     >
-      <Card className="shadow-lg">
+      <Card className="shadow-lg max-h-[80vh] overflow-hidden flex flex-col">
         <CardHeader className="flex flex-row items-start justify-between">
           <div>
-            <CardTitle className="text-xl">
-              Invoice #{invoiceData.invoice_number || invoice.invoice_id}
-            </CardTitle>
+            <DialogTitle className="text-xl">Invoice #{invoiceData.invoice_number || invoice.invoice_id}</DialogTitle>
             <CardDescription className="mt-1 flex items-center gap-2">
               {invoiceData.date && formatDate(invoiceData.date)}
               {getStatusBadge(invoice.status)}
@@ -139,7 +136,7 @@ export function InvoiceDetailView({ invoiceId, onClose, className }: InvoiceDeta
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 overflow-y-auto pb-6">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-1">
               <h3 className="text-sm font-medium text-muted-foreground">Bill To</h3>
@@ -163,7 +160,7 @@ export function InvoiceDetailView({ invoiceId, onClose, className }: InvoiceDeta
               <TabsTrigger value="operations">Operation Codes ({operationCodes.length})</TabsTrigger>
             </TabsList>
             <TabsContent value="items" className="mt-4">
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -199,7 +196,7 @@ export function InvoiceDetailView({ invoiceId, onClose, className }: InvoiceDeta
               </div>
             </TabsContent>
             <TabsContent value="operations" className="mt-4">
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
