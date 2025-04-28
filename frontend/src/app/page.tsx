@@ -4,7 +4,6 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell"
 import { InvoiceStatusCards } from "@/components/dashboard/invoice-status-cards"
 import { InvoiceCharts } from "@/components/dashboard/invoice-charts"
 import { InvoiceFilters } from "@/components/dashboard/invoice-filters"
-import { FinancialMetrics } from "@/components/dashboard/financial-metrics"
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 // Add recent invoices
 
@@ -17,7 +16,6 @@ export default function DashboardPage() {
           <Suspense fallback={<DashboardSkeleton />}>
             <div className="grid gap-6">
               <InvoiceStatusCards />
-              <FinancialMetrics />
               <InvoiceFilters />
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
                 <InvoiceCharts className="lg:col-span-4" />
