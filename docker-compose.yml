@@ -14,7 +14,7 @@ services:
     networks:
       - backend_net
     depends_on:
-      - backend # Opcional: indica que el frontend depende del backend
+      - backend
 
   backend:
     build:

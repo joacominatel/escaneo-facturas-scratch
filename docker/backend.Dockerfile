@@ -5,9 +5,8 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["flask", "db", "migrate", "-m", "--message", "Initial migration"]
-CMD ["flask", "db", "upgrade"]
-
 COPY . .
 
-CMD ["flask", "run", "--host=0.0.0.0", "--port=8010"]
+EXPOSE 8010
+
+CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:8010", "wsgi:app"]
