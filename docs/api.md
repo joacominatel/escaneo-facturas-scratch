@@ -413,26 +413,92 @@ Returns a paginated list of structured invoice data.
 
 ---
 
+### 10. Update Invoice Preview Data (Real-time)
+
+`PATCH /api/invoices/<int:invoice_id>/preview`
+
+**Description:**
+Allows updating the `preview_data` JSON object for a specific invoice. This is typically used during the manual validation step before confirming an invoice. The endpoint uses database row-level locking (`with_for_update`) to prevent simultaneous conflicting updates. After a successful update, it emits a WebSocket event to notify connected clients in real-time.
+
+**Path Parameters:**
+- `invoice_id` (integer, required): The ID of the invoice whose `preview_data` is to be updated.
+
+**Request Body:**
+- **Content-Type:** `application/json`
+```json
+{
+  "preview_data": {
+    "invoice_number": "UPDATED-INV-001",
+    "amount_total": 151.00,
+    "date": "2024-07-21",
+    "bill_to": "Client Corp Updated",
+    "currency": "USD",
+    "items": [
+        // updated items array
+    ]
+    // ... other extracted fields to be updated
+  }
+}
+```
+*(Note: The entire `preview_data` object should be provided in the request body. Fields not included might be removed or defaulted depending on implementation, although the current implementation overwrites the whole field).*
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "Datos de previsualización actualizados correctamente",
+  "invoice_id": 15
+}
+```
+
+**Response (Error - 400 Bad Request):**
+- If the request body is not valid JSON. (`{"error": "La petición debe contener datos JSON"}`)
+- If the `preview_data` key is missing in the JSON body. (`{"error": "El cuerpo JSON debe contener el campo 'preview_data'"}`)
+- If the value of `preview_data` is not a valid JSON object (dictionary). (`{"error": "'preview_data' debe ser un objeto JSON válido (dict)"}`)
+- If the provided `preview_data` object cannot be serialized to JSON. (`{"error": "Error al serializar 'preview_data' a JSON: [details]"}`)
+
+**Response (Error - 404 Not Found):**
+If the invoice with the specified ID does not exist.
+```json
+{
+  "error": "Factura con ID [invoice_id] no encontrada"
+}
+```
+
+**Response (Error - 500 Internal Server Error):**
+- If a database error occurs during the update (e.g., locking issues, connection problems). (`{"error": "Error de base de datos al actualizar la factura"}`)
+- If an unexpected server error occurs. (`{"error": "Error interno inesperado del servidor"}`)
+
+---
+
 ## 📡 Real-time Updates via WebSockets
 
-The API utilizes WebSockets (likely via Flask-SocketIO) to push real-time status updates for invoices as they are processed by the background task.
+The API utilizes WebSockets (likely via Flask-SocketIO) to push real-time updates for invoices as they are processed by the background task or manually modified.
 
 **Namespace:** `/invoices`
 
-**Event:** `invoice_status_update`
+**Events:**
 
-**Description:**
-This event is emitted whenever the status of an invoice changes during its lifecycle (e.g., when processing starts, finishes successfully, fails, or is manually confirmed/rejected).
+1.  **`invoice_status_update`**
+    - **Description:** Emitted whenever the overall `status` of an invoice changes (e.g., `processing`, `waiting_validation`, `processed`, `failed`, `rejected`).
+    - **Data Payload:**
+      ```json
+      {
+        "id": <integer>,         // The ID of the invoice that was updated
+        "status": "<string>",    // The new status
+        "filename": "<string>"   // The filename
+      }
+      ```
 
-**Data Payload:**
-The data sent with the event provides the current state of the invoice:
-```json
-{
-  "id": <integer>,         // The ID of the invoice that was updated
-  "status": "<string>",    // The new status of the invoice (e.g., "processing", "waiting_validation", "processed", "failed", "rejected")
-  "filename": "<string>"   // The filename of the invoice
-}
-```
+2.  **`invoice_preview_updated`**
+    - **Description:** Emitted specifically after a successful `PATCH /api/invoices/<int:invoice_id>/preview` request. This signals that the `preview_data` has been modified.
+    - **Emitted To:** A specific room for the invoice (`invoice_<invoice_id>`). Clients interested in updates for a specific invoice should join this room.
+    - **Data Payload:**
+      ```json
+      {
+        "id": <integer>,         // The ID of the invoice that was updated
+        "preview_data": { ... } // The complete, updated preview_data object
+      }
+      ```
 
 **Example Usage (Conceptual JavaScript):**
 ```javascript
@@ -441,20 +507,35 @@ const socket = io('/invoices'); // Connect to the namespace
 
 socket.on('connect', () => {
   console.log('Connected to WebSocket namespace /invoices');
+  // Example: Join room for a specific invoice when viewing/editing it
+  const currentInvoiceId = 123; // Get this from your app's state
+  socket.emit('join', { room: `invoice_${currentInvoiceId}` });
+  console.log(`Joined room invoice_${currentInvoiceId}`);
 });
 
+// Listen for general status changes
 socket.on('invoice_status_update', (data) => {
   console.log('Invoice Status Update Received:', data);
-  // Update your UI based on data.id and data.status
-  // e.g., update status display for invoice with ID data.id
-  //       to show the new status data.status
+  // Update UI list view or general status indicators
+});
+
+// Listen for specific preview data changes (only if joined the room)
+socket.on('invoice_preview_updated', (data) => {
+  console.log('Invoice Preview Data Updated Received:', data);
+  // Update the detailed view/editor form for the specific invoice (data.id)
+  // with the new data.preview_data
 });
 
 socket.on('disconnect', () => {
   console.log('Disconnected from WebSocket');
+  // Optionally leave rooms or handle reconnection logic
 });
+
+// Example: Leave room when navigating away from the invoice view
+// const currentInvoiceId = 123;
+// socket.emit('leave', { room: `invoice_${currentInvoiceId}` });
 ```
 
-This allows clients to reflect the progress and final state of invoice processing without needing to continuously poll the API endpoints.
+This allows clients to reflect the progress, final state, and manual edits of invoice processing without needing to continuously poll the API endpoints.
 
 ---
