@@ -1,3 +1,8 @@
+---
+description: Flask API documentation for invoices
+globs: 
+alwaysApply: false
+---
 # API Documentation - Invoice Scanner App
 
 This API allows managing the upload, processing, validation, and retrieval of scanned invoices using OCR and potentially AI for data extraction.
@@ -400,5 +405,6 @@ Returns a paginated list of structured invoice data.
 }
 ```
 *(Note: The `total` in the response reflects the count after filtering, if `op_number` is used).*
+
 
 ---
