@@ -68,12 +68,6 @@ export function useInvoiceTable() {
         }
     }, [pagination.pageSize, storedPageSize, setStoredPageSize]);
 
-    useEffect(() => {
-        if (pagination.pageSize !== storedPageSize) {
-            setPagination(p => ({ ...p, pageSize: storedPageSize }));
-        }
-    }, [storedPageSize, pagination.pageSize]);
-
     // --- Lógica de Fetching --- 
     const fetchData = useCallback(async (resetSelection = false) => {
         setIsLoading(true);
@@ -106,7 +100,7 @@ export function useInvoiceTable() {
         pagination.pageIndex,
         pagination.pageSize,
         debouncedSearchTerm,
-        storedStatuses, // Depender del valor persistido usado en la API call
+        storedStatuses,
         sorting
     ]);
 
