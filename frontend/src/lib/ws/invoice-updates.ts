@@ -27,56 +27,64 @@ interface ConnectOptions {
  */
 export function connectToInvoiceUpdates(options: ConnectOptions): Socket {
   if (socket?.connected) {
-    console.log("WebSocket ya conectado.");
-    // Si reutilizamos, podríamos querer actualizar los listeners,
-    // pero por ahora, simplemente devolvemos el existente.
-    // Considera una lógica más robusta si los handlers cambian.
-    return socket;
+    console.log("[WS] Reutilizando conexión existente.");
+    // Limpiar listeners antiguos antes de adjuntar nuevos (importante si las opciones cambian)
+    socket.off('connect');
+    socket.off('disconnect');
+    socket.off('connect_error');
+    socket.off('invoice_status_update');
+    socket.offAny();
+  } else {
+    // Si no hay conexión, crear una nueva
+    const socketUrl = getApiBaseUrl();
+    console.log(`[WS] Creando nueva conexión a ${socketUrl} en namespace ${SOCKET_NAMESPACE}...`);
+    socket = socketIO(socketUrl, {
+      transports: ['websocket'],
+      namespace: SOCKET_NAMESPACE,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 3000,
+      // autoConnect: true, // Es el valor por defecto
+    });
+    console.log(`[WS] Socket inicializado. Estado conectado: ${socket.connected}`);
   }
 
-  const socketUrl = getApiBaseUrl();
-  console.log(`Intentando conectar WebSocket a ${socketUrl} en namespace ${SOCKET_NAMESPACE}...`);
+  // --- Registrar Listeners --- 
+  // Siempre registrar listeners en la instancia actual del socket
 
-  // Desconectar y limpiar listeners antiguos
-  if (socket) {
-    socket.disconnect();
-    socket.off();
-  }
-
-  // Conectar
-  socket = socketIO(socketUrl, {
-    path: '/socket.io/',
-    transports: ['websocket'],
-    // Considera añadir `reconnectionAttempts: 3` o similar si quieres limitar los reintentos
+  socket.on('connect', () => {
+    // Este evento AHORA debería ser para el namespace /invoices
+    console.log(`[WS] ¡Conectado exitosamente! ID: ${socket?.id}, Namespace: ${socket?.nsp}`);
+    options.onConnect?.(); // Llamar al callback del usuario
   });
 
-  // Registrar listeners
-  // Usamos un mapeo para facilitar la gestión si reutilizamos el socket
-  const listeners = {
-    connect: options.onConnect,
-    disconnect: options.onDisconnect,
-    connect_error: options.onConnectError,
-    invoice_status_update: options.onStatusUpdate,
-  };
-
-  // Adjuntar listeners que se proporcionaron
-  Object.entries(listeners).forEach(([event, handler]) => {
-    if (handler) {
-      // Castear explícitamente los tipos para el listener
-      socket?.on(event as keyof SocketEventMap, handler as (...args: any[]) => void);
-    }
+  socket.on('disconnect', (reason) => {
+    console.warn(`[WS] Desconectado. Razón: ${reason}`);
+    options.onDisconnect?.(reason); // Llamar al callback del usuario
   });
 
-  // Log general
+  socket.on('connect_error', (error) => {
+    console.error(`[WS] Error de conexión:`, error);
+    options.onConnectError?.(error); // Llamar al callback del usuario
+  });
+
+  const statusUpdateEventName = 'invoice_status_update';
+  console.log(`[WS] Registrando listener para evento '${statusUpdateEventName}' en namespace ${socket.nsp}...`);
+  socket.on(statusUpdateEventName, (data: InvoiceStatusUpdateData) => {
+    console.log(`[WS] Evento '${statusUpdateEventName}' recibido:`, data);
+    options.onStatusUpdate?.(data); // Llamar al callback del usuario
+  });
+
+  // Log general para cualquier evento
   socket.onAny((eventName: string, ...args: any[]) => {
-    console.log(`WebSocket event received: ${eventName}`, args);
+    console.log(`[WS] Evento recibido en namespace '${socket?.nsp}': ${eventName}`, args);
   });
 
-  console.log("Socket inicializado, esperando conexión...");
-  // La conexión suele ser automática a menos que autoConnect sea false
+  // Si el socket no estaba conectado previamente, intentar conectar (autoConnect suele hacerlo)
+  if (!socket.connected) {
+     // socket.connect(); // Opcional: explícito si autoConnect=false o hay dudas
+     console.log("[WS] Esperando conexión automática...");
+  }
 
-  // Devolver el socket creado (puede no estar conectado aún)
-  // Es importante que el código que llama maneje el estado de conexión
   return socket;
 }
 
@@ -120,4 +128,4 @@ interface SocketEventMap {
   connect_error: (error: Error) => void;
   invoice_status_update: (data: InvoiceStatusUpdateData) => void;
   // Añadir otros eventos si son necesarios
-} 
+}

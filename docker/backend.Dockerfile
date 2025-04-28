@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 8010
 
-CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:8010", "wsgi:app"]
+CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:8010", "--log-level", "debug", "wsgi:app"]

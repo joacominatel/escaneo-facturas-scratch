@@ -115,12 +115,14 @@ export function useInvoiceTable() {
 
     // --- Handlers y Lógica del WebSocket --- 
     const handleWsConnect = useCallback(() => {
+        console.log("[useInvoiceTable] handleWsConnect ejecutado."); // <-- Log añadido
         setIsConnectingWs(false);
         setIsLive(true);
         // Opcional: toast o log
     }, []);
 
     const handleWsDisconnect = useCallback((reason: unknown) => {
+        console.warn("[useInvoiceTable] handleWsDisconnect ejecutado. Razón:", reason); // <-- Log añadido
         setIsConnectingWs(false);
         setIsLive(false);
         // Opcional: toast o log (evitar si es manual)
@@ -128,17 +130,24 @@ export function useInvoiceTable() {
     }, []);
 
     const handleWsConnectError = useCallback((error: Error) => {
+        console.error("[useInvoiceTable] handleWsConnectError ejecutado:", error); // <-- Log añadido
         setIsConnectingWs(false);
         setIsLive(false);
         toast.error('Error conexión Live', { description: error.message });
     }, []);
 
     const handleWsStatusUpdate = useCallback((update: { id: number; status: string; filename: string }) => {
-        setData(currentData =>
-            currentData.map(invoice =>
+        console.log("[useInvoiceTable] handleWsStatusUpdate ejecutado con datos:", update); // <-- Log añadido
+        setData(currentData => {
+            console.log("[useInvoiceTable] Actualizando estado 'data'..."); // <-- Log añadido
+            const updatedData = currentData.map(invoice =>
                 invoice.id === update.id ? { ...invoice, status: update.status as InvoiceStatus } : invoice
-            )
-        );
+            );
+            // Comprobar si realmente hubo cambios
+            const changed = JSON.stringify(updatedData) !== JSON.stringify(currentData);
+            console.log("[useInvoiceTable] ¿Estado 'data' cambiado?", changed); // <-- Log añadido
+            return updatedData;
+        });
         // Opcional: Toast
         // toast.info(...)
     }, []);
@@ -226,4 +235,4 @@ export function useInvoiceTable() {
         openDetailsModal: handleViewDetails,
         setIsDetailModalOpen,
     };
-} 
+}
