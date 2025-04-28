@@ -1,7 +1,7 @@
 'use client' // Necesario ya que InvoiceTable es un Client Component
 
 import React from 'react'
-import { InvoiceTable } from "@/components/invoice-history/invoice-table"
+import { InvoiceTable } from "@/components/invoice-history/invoice-table/index"
 import {
   Card,
   CardContent,
