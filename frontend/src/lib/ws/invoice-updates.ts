@@ -1,131 +1,359 @@
 import { io as socketIO, type Socket } from "socket.io-client";
 import { getApiBaseUrl } from "@/lib/api/client";
 
-// Definir explícitamente el tipo para DisconnectReason si la importación directa falla
-type DisconnectReason = Parameters<Socket["on"]["call"]>[1];
+// Definir DisconnectReason de forma más robusta
+type DisconnectReason = Socket["disconnect"] extends (reason: infer R, ...args: any[]) => any ? R : string;
+// Definir un tipo para el listener de desconexión que acepte el argumento opcional
+type DisconnectListenerCallback = (reason: DisconnectReason, description?: any) => void;
 
 const SOCKET_NAMESPACE = '/invoices';
 
 let socket: Socket | null = null;
+let connectionPromise: Promise<Socket> | null = null;
+let listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
+let connectionState: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected';
 
-interface InvoiceStatusUpdateData {
+// --- Tipos de Datos de Eventos --- 
+export interface InvoiceStatusUpdateData {
   id: number;
   status: string;
   filename: string;
 }
 
-interface ConnectOptions {
-  onConnect?: () => void;
-  onDisconnect?: (reason: DisconnectReason) => void;
-  onConnectError?: (error: Error) => void;
-  onStatusUpdate?: (data: InvoiceStatusUpdateData) => void;
+export interface InvoicePreviewUpdateData {
+  id: number;
+  preview_data: Record<string, any>; // O un tipo más específico si lo tienes
 }
 
-/**
- * Conecta al WebSocket de actualizaciones de facturas.
- * Si ya existe una conexión, la reutiliza.
- */
-export function connectToInvoiceUpdates(options: ConnectOptions): Socket {
-  if (socket?.connected) {
-    console.log("[WS] Reutilizando conexión existente.");
-    // Limpiar listeners antiguos antes de adjuntar nuevos (importante si las opciones cambian)
-    socket.off('connect');
-    socket.off('disconnect');
-    socket.off('connect_error');
-    socket.off('invoice_status_update');
-    socket.offAny();
-  } else {
-    // Si no hay conexión, crear una nueva
-    const socketUrl = getApiBaseUrl();
-    console.log(`[WS] Creando nueva conexión a ${socketUrl} en namespace ${SOCKET_NAMESPACE}...`);
-    socket = socketIO(socketUrl, {
-      transports: ['websocket'],
-      namespace: SOCKET_NAMESPACE,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 3000,
-      // autoConnect: true, // Es el valor por defecto
+// --- Tipos de Listener --- 
+type StatusUpdateListener = (data: InvoiceStatusUpdateData) => void;
+type PreviewUpdateListener = (data: InvoicePreviewUpdateData) => void;
+type ConnectListener = () => void;
+type ConnectErrorListener = (error: Error) => void;
+
+// --- Constantes de Nombres de Eventos (más seguro que strings) --- 
+const Event = {
+    CONNECT: 'connect',
+    DISCONNECT: 'disconnect',
+    CONNECT_ERROR: 'connect_error',
+    STATUS_UPDATE: 'invoice_status_update',
+    PREVIEW_UPDATE: 'invoice_preview_updated',
+    // Para gestión interna de listeners
+    _INTERNAL_CONNECT: '_internal_connect',
+    _INTERNAL_DISCONNECT: '_internal_disconnect',
+    _INTERNAL_CONNECT_ERROR: '_internal_connect_error',
+} as const;
+
+// --- Funciones Auxiliares Internas --- 
+
+function emitToListeners(eventName: string, ...args: any[]): void {
+    listeners.get(eventName)?.forEach(listener => {
+        try {
+            listener(...args);
+        } catch (error) {
+            console.error(`[WS] Error ejecutando listener para ${eventName}:`, error);
+        }
     });
-    console.log(`[WS] Socket inicializado. Estado conectado: ${socket.connected}`);
-  }
+}
 
-  // --- Registrar Listeners --- 
-  // Siempre registrar listeners en la instancia actual del socket
+function setupSocketListeners(socketInstance: Socket): void {
+    // Limpiar listeners antiguos de la instancia de socket real
+    socketInstance.offAny();
+    socketInstance.removeAllListeners();
 
-  socket.on('connect', () => {
-    // Este evento AHORA debería ser para el namespace /invoices
-    console.log(`[WS] ¡Conectado exitosamente! ID: ${socket?.id}, Namespace: ${socket?.nsp}`);
-    options.onConnect?.(); // Llamar al callback del usuario
-  });
+    socketInstance.on(Event.CONNECT, () => {
+        // Este handler es para conexiones/reconexiones *después* de la inicial
+        console.log(`[WS] Evento CONNECT recibido! ID: ${socketInstance.id}, Estado anterior: ${connectionState}`);
+        if (connectionState !== 'connected') { // Evitar emitir múltiples veces si ya estaba conectado
+           connectionState = 'connected';
+           emitToListeners(Event._INTERNAL_CONNECT);
+        }
+    });
 
-  socket.on('disconnect', (reason) => {
-    console.warn(`[WS] Desconectado. Razón: ${reason}`);
-    options.onDisconnect?.(reason); // Llamar al callback del usuario
-  });
+    // Usar el tipo explícito DisconnectListenerCallback
+    const disconnectHandler: DisconnectListenerCallback = (reason, description) => {
+        console.warn(`[WS] Evento DISCONNECT recibido. Razón: ${reason}`, description ? `(${JSON.stringify(description)})`: '');
+        const wasConnected = connectionState === 'connected';
+        connectionState = 'disconnected';
+        emitToListeners(Event._INTERNAL_DISCONNECT, reason, description);
+        // Resetear la promesa si la desconexión no es intencional por el cliente
+        if (reason !== 'io client disconnect' && wasConnected) { // Solo resetear si estábamos conectados
+            connectionPromise = null;
+            socket = null; // Forzar nueva conexión la próxima vez
+        }
+    };
+    socketInstance.on(Event.DISCONNECT, disconnectHandler);
 
-  socket.on('connect_error', (error) => {
-    console.error(`[WS] Error de conexión:`, error);
-    options.onConnectError?.(error); // Llamar al callback del usuario
-  });
+    socketInstance.on(Event.CONNECT_ERROR, (error: Error) => {
+        console.error(`[WS] Evento CONNECT_ERROR recibido:`, error);
+        connectionState = 'error';
+        emitToListeners(Event._INTERNAL_CONNECT_ERROR, error);
+        connectionPromise = null; // Permitir reintentar la conexión
+        socket = null;
+    });
 
-  const statusUpdateEventName = 'invoice_status_update';
-  console.log(`[WS] Registrando listener para evento '${statusUpdateEventName}' en namespace ${socket.nsp}...`);
-  socket.on(statusUpdateEventName, (data: InvoiceStatusUpdateData) => {
-    console.log(`[WS] Evento '${statusUpdateEventName}' recibido:`, data);
-    options.onStatusUpdate?.(data); // Llamar al callback del usuario
-  });
+    socketInstance.on(Event.STATUS_UPDATE, (data: InvoiceStatusUpdateData) => {
+        console.log(`[WS] Evento '${Event.STATUS_UPDATE}' recibido:`, data);
+        emitToListeners(Event.STATUS_UPDATE, data);
+    });
 
-  // Log general para cualquier evento
-  socket.onAny((eventName: string, ...args: any[]) => {
-    console.log(`[WS] Evento recibido en namespace '${socket?.nsp}': ${eventName}`, args);
-  });
+    socketInstance.on(Event.PREVIEW_UPDATE, (data: InvoicePreviewUpdateData) => {
+        console.log(`[WS] Evento '${Event.PREVIEW_UPDATE}' recibido:`, data);
+        emitToListeners(Event.PREVIEW_UPDATE, data);
+    });
 
-  // Si el socket no estaba conectado previamente, intentar conectar (autoConnect suele hacerlo)
-  if (!socket.connected) {
-     // socket.connect(); // Opcional: explícito si autoConnect=false o hay dudas
-     console.log("[WS] Esperando conexión automática...");
-  }
+    // Log general para depuración
+    socketInstance.onAny((eventName: string, ...args: any[]) => {
+      if (![Event.CONNECT, Event.DISCONNECT, Event.CONNECT_ERROR, Event.STATUS_UPDATE, Event.PREVIEW_UPDATE].includes(eventName as any)) {
+         console.log(`[WS] Evento ANY recibido: ${eventName}`, args);
+      }
+    });
+}
 
-  return socket;
+// --- Funciones Públicas --- 
+
+/**
+ * Establece (o reutiliza) la conexión WebSocket y devuelve una promesa
+ * que resuelve con la instancia del socket conectado.
+ */
+function ensureConnected(): Promise<Socket> {
+    if (socket?.connected) {
+        // Si ya está conectado, asegurarse que los listeners permanentes estén activos
+        // y emitir el evento connect por si alguien se suscribió tarde.
+        if (connectionState !== 'connected') { // Solo si el estado interno no estaba sincronizado
+             console.log("[WS] ensureConnected: Ya conectado, sincronizando estado y listeners.");
+             connectionState = 'connected';
+             setupSocketListeners(socket); // Re-asegurar listeners permanentes
+             emitToListeners(Event._INTERNAL_CONNECT); // Notificar a listeners tardíos
+        }
+        return Promise.resolve(socket);
+    }
+
+    if (connectionPromise) {
+        return connectionPromise;
+    }
+
+    console.log("[WS] ensureConnected: Iniciando proceso de conexión...");
+    connectionState = 'connecting';
+
+    connectionPromise = new Promise((resolve, reject) => {
+        // Crear instancia si no existe
+        if (!socket) {
+            const socketUrl = getApiBaseUrl(); // Volver a la URL base
+            console.log(`[WS] Creando nueva instancia de socket para ${socketUrl} (namespace ${SOCKET_NAMESPACE} manejado por cliente)...`);
+            // Conectar a la URL base
+            socket = socketIO(socketUrl, {
+                path: '/socket.io', // Ruta estándar
+                transports: ['websocket'],
+                reconnectionAttempts: 5,
+                reconnectionDelay: 3000,
+                autoConnect: false, 
+                // El cliente debería manejar el namespace automáticamente
+            });
+        } else {
+             console.log("[WS] Usando instancia de socket existente para conectar...");
+        }
+
+        // Limpiar listeners temporales previos por si acaso
+        socket.off(Event.CONNECT);
+        socket.off(Event.DISCONNECT);
+        socket.off(Event.CONNECT_ERROR);
+
+        // Listeners temporales
+        const onConnect = () => {
+            console.log("[WS] Conexión inicial establecida (listener temporal)");
+            clearTimeout(timeoutId);
+            socket?.off(Event.CONNECT, onConnect);
+            socket?.off(Event.DISCONNECT, onDisconnect);
+            socket?.off(Event.CONNECT_ERROR, onError);
+
+            if (socket) {
+                connectionState = 'connected';
+                setupSocketListeners(socket);
+                console.log("[WS] Listeners permanentes configurados.");
+                emitToListeners(Event._INTERNAL_CONNECT);
+                console.log("[WS] Evento _INTERNAL_CONNECT emitido.");
+                resolve(socket);
+            } else {
+                connectionState = 'error';
+                reject(new Error("[WS] Conectado pero la instancia del socket desapareció"));
+            }
+        };
+
+        const onDisconnect: DisconnectListenerCallback = (reason, description) => {
+             console.warn("[WS] Desconectado durante intento inicial (listener temporal)", reason, description);
+             clearTimeout(timeoutId);
+             socket?.off(Event.CONNECT, onConnect);
+             socket?.off(Event.DISCONNECT, onDisconnect);
+             socket?.off(Event.CONNECT_ERROR, onError);
+             connectionState = 'disconnected';
+             connectionPromise = null;
+             socket = null;
+             reject(new Error(`[WS] Desconectado durante intento inicial: ${reason}`));
+         };
+ 
+         const onError = (error: Error) => {
+             console.error("[WS] Error durante intento inicial (listener temporal)", error);
+             clearTimeout(timeoutId);
+             socket?.off(Event.CONNECT, onConnect);
+             socket?.off(Event.DISCONNECT, onDisconnect);
+             socket?.off(Event.CONNECT_ERROR, onError);
+             connectionState = 'error';
+             connectionPromise = null;
+             socket = null;
+             reject(new Error(`[WS] Error de conexión inicial: ${error.message}`));
+         };
+ 
+         // Añadir listeners temporales
+         socket.once(Event.CONNECT, onConnect);
+         socket.once(Event.DISCONNECT, onDisconnect);
+         socket.once(Event.CONNECT_ERROR, onError);
+ 
+         // Timeout
+         const timeoutId = setTimeout(() => {
+              console.warn("[WS] Timeout de conexión inicial excedido.");
+             socket?.off(Event.CONNECT, onConnect);
+             socket?.off(Event.DISCONNECT, onDisconnect);
+             socket?.off(Event.CONNECT_ERROR, onError);
+             connectionState = 'error';
+             connectionPromise = null;
+             socket?.disconnect();
+             socket = null;
+             reject(new Error("[WS] Timeout de conexión inicial"));
+         }, 10000);
+ 
+         // Iniciar conexión explícitamente
+         console.log("[WS] Llamando a socket.connect()...");
+         socket.connect();
+
+    });
+
+    connectionPromise.catch(() => { /* No hacer nada aquí, los handlers ya resetean */ });
+
+    return connectionPromise;
 }
 
 /**
- * Desconecta el WebSocket de actualizaciones de facturas.
+ * Registra un listener para un evento específico.
  */
-export function disconnectFromInvoiceUpdates(): void {
+function addEventListener<T extends (...args: any[]) => void>(eventName: string, listener: T): void {
+    if (!listeners.has(eventName)) {
+        listeners.set(eventName, new Set());
+    }
+    listeners.get(eventName)?.add(listener);
+    console.log(`[WS] Listener añadido para ${eventName}. Total: ${listeners.get(eventName)?.size}`);
+}
+
+/**
+ * Elimina un listener para un evento específico.
+ */
+function removeEventListener<T extends (...args: any[]) => void>(eventName: string, listener: T): void {
+    listeners.get(eventName)?.delete(listener);
+    console.log(`[WS] Listener eliminado para ${eventName}. Restantes: ${listeners.get(eventName)?.size}`);
+    if (listeners.get(eventName)?.size === 0) {
+        listeners.delete(eventName);
+    }
+}
+
+// --- Exportaciones específicas por evento --- 
+
+export function addStatusUpdateListener(listener: StatusUpdateListener): void {
+    ensureConnected().catch(err => console.error("[WS] Falló la conexión al añadir listener de status", err));
+    addEventListener(Event.STATUS_UPDATE, listener);
+}
+export function removeStatusUpdateListener(listener: StatusUpdateListener): void {
+    removeEventListener(Event.STATUS_UPDATE, listener);
+}
+
+export function addPreviewUpdateListener(listener: PreviewUpdateListener): void {
+    ensureConnected().catch(err => console.error("[WS] Falló la conexión al añadir listener de preview", err));
+    addEventListener(Event.PREVIEW_UPDATE, listener);
+}
+export function removePreviewUpdateListener(listener: PreviewUpdateListener): void {
+    removeEventListener(Event.PREVIEW_UPDATE, listener);
+}
+
+export function addConnectListener(listener: ConnectListener): void {
+    // Si ya está conectado, llamar inmediatamente
+    if (connectionState === 'connected') listener();
+    addEventListener(Event._INTERNAL_CONNECT, listener);
+}
+export function removeConnectListener(listener: ConnectListener): void {
+    removeEventListener(Event._INTERNAL_CONNECT, listener);
+}
+
+// Añadir listeners para disconnect y connect_error de forma similar si son necesarios
+// Usar el tipo explícito DisconnectListenerCallback
+export function addDisconnectListener(listener: DisconnectListenerCallback): void {
+    addEventListener(Event._INTERNAL_DISCONNECT, listener);
+}
+export function removeDisconnectListener(listener: DisconnectListenerCallback): void {
+    removeEventListener(Event._INTERNAL_DISCONNECT, listener);
+}
+
+export function addConnectErrorListener(listener: ConnectErrorListener): void {
+    addEventListener(Event._INTERNAL_CONNECT_ERROR, listener);
+}
+export function removeConnectErrorListener(listener: ConnectErrorListener): void {
+    removeEventListener(Event._INTERNAL_CONNECT_ERROR, listener);
+}
+
+
+/**
+ * Se une a un room específico en el servidor.
+ * @param roomName Nombre del room (ej: 'invoice_123')
+ */
+export async function joinRoom(roomName: string): Promise<void> {
+    try {
+        const connectedSocket = await ensureConnected();
+        connectedSocket.emit('join', { room: roomName });
+        console.log(`[WS] Solicitud para unirse al room: ${roomName}`);
+    } catch (error) {
+        console.error(`[WS] Error al intentar unirse al room ${roomName}:`, error);
+        // Podrías querer reintentar o notificar al usuario
+    }
+}
+
+/**
+ * Abandona un room específico en el servidor.
+ * @param roomName Nombre del room (ej: 'invoice_123')
+ */
+export async function leaveRoom(roomName: string): Promise<void> {
+    // Es seguro intentar salir incluso si no estamos conectados
   if (socket?.connected) {
-    console.log("Desconectando WebSocket...");
+        socket.emit('leave', { room: roomName });
+        console.log(`[WS] Solicitud para abandonar el room: ${roomName}`);
+    } else {
+         console.log(`[WS] No conectado, no se puede abandonar el room: ${roomName}`);
+    }
+    // No esperamos confirmación para 'leave'
+}
+
+/**
+ * Desconecta el WebSocket y limpia todos los listeners.
+ */
+export function disconnect(): void {
+    if (socket) {
+        console.log("[WS] Desconectando y limpiando...");
     socket.disconnect();
-    socket.off(); // Limpiar listeners al desconectar manualmente
     socket = null;
-  } else if (socket) {
-    console.log("WebSocket existía pero no estaba conectado. Limpiando.");
-    socket.off();
-    socket = null;
-  } else {
-    console.log("WebSocket no inicializado.");
   }
+    connectionPromise = null;
+    listeners.clear();
+    connectionState = 'disconnected';
 }
 
 /**
  * Obtiene la instancia actual del socket (puede ser null).
+ * Usar con precaución, preferir ensureConnected().
  */
-export function getInvoiceSocket(): Socket | null {
+export function getRawSocket(): Socket | null {
   return socket;
 }
 
 /**
  * Verifica si el socket está actualmente conectado.
  */
-export function isInvoiceSocketConnected(): boolean {
-  return socket?.connected ?? false;
-}
-
-// Definir una interfaz para los eventos esperados, mejora la seguridad de tipos en .on
-// Esto puede necesitar ajustarse según los eventos reales emitidos por tu servidor
-interface SocketEventMap {
-  connect: () => void;
-  disconnect: (reason: DisconnectReason) => void;
-  connect_error: (error: Error) => void;
-  invoice_status_update: (data: InvoiceStatusUpdateData) => void;
-  // Añadir otros eventos si son necesarios
+export function isConnected(): boolean {
+  return connectionState === 'connected';
 }

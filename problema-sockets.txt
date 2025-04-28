@@ -1,0 +1,7 @@
+Parece haber una condición de carrera en invoice-updates.ts durante la conexión inicial:
+Cuando llamas a addConnectListener (o cualquier add*Listener), se llama a ensureConnected.
+ensureConnected crea el socket y añade listeners temporales (socket.once('connect', ...)) para resolver la promesa connectionPromise.
+La conexión física ocurre y el evento connect del socket se dispara.
+El listener temporal se ejecuta, resuelve la promesa connectionPromise y llama a setupSocketListeners (que añade los listeners permanentes como socketInstance.on('connect', ...)).
+La función addEventListener (llamada por addConnectListener) finalmente añade tu listener del hook (wsListenersRef.current.onConnect) al Map listeners.
+El problema: Para cuando tu listener del hook se añade al Map, el evento connect original del socket ya ocurrió y el emitToListeners(Event._INTERNAL_CONNECT) dentro del listener permanente (setupSocketListeners) podría no encontrar tu listener recién añadido, o la lógica que emite el evento interno podría no estar sincronizada correctamente con la adición del listener externo.
