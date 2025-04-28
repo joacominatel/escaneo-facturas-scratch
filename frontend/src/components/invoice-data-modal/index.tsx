@@ -42,7 +42,7 @@ export function InvoiceDataModal({ invoiceId, isOpen, onOpenChange, trigger }: I
 
     // Determinar los datos e ítems a mostrar para los OPs en el header
     const dataForHeader = details
-        ? (details.status === 'processed' && details.final_data ? details.final_data : details.preview_data)
+        ? (details.status === 'processed' && details.final_data ? details.final_data : details.preview)
         : null;
 
     // Determinar el estado a mostrar en el header
@@ -96,16 +96,7 @@ export function InvoiceDataModal({ invoiceId, isOpen, onOpenChange, trigger }: I
                          <p className="text-center text-muted-foreground py-10">No se han cargado detalles.</p>
                      )}
                 </div>
-
-                {/* Footer opcional con botón de cierre */}
-                {/* <DialogFooter className="mt-auto pt-4 border-t"> */}
-                {/*     <DialogClose asChild> */}
-                {/*         <Button type="button" variant="secondary"> */}
-                {/*             Cerrar */}
-                {/*         </Button> */}
-                {/*     </DialogClose> */}
-                {/* </DialogFooter> */}
             </DialogContent>
         </Dialog>
     );
-} 
+}

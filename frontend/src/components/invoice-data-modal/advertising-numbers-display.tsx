@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from "@/components/ui/badge";
-import type { ProcessedInvoiceItem } from "@/lib/api/types"; // Asumiendo que los items tienen esta estructura
+import type { ProcessedInvoiceItem } from "@/lib/api/types";
 
 interface AdvertisingNumbersDisplayProps {
     items?: ProcessedInvoiceItem[];

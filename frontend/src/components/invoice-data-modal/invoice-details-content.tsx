@@ -26,10 +26,10 @@ const formatCurrency = (amount?: number, currency: string = 'ARS') => {
 };
 
 export function InvoiceDetailsContent({ details }: InvoiceDetailsContentProps) {
-    // Determinar qué datos mostrar: final_data si existe y la factura está procesada, si no preview_data
+    // Determinar qué datos mostrar: final_data si existe y la factura está procesada, si no preview
     const dataToShow = details.status === 'processed' && details.final_data
         ? details.final_data
-        : details.preview_data;
+        : details.preview;
 
     if (!dataToShow) {
         return <p className="text-center text-muted-foreground py-8">No hay datos de previsualización o finales disponibles.</p>;
@@ -81,4 +81,4 @@ export function InvoiceDetailsContent({ details }: InvoiceDetailsContentProps) {
             </div>
         </div>
     );
-} 
+}

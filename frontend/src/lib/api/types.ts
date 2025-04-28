@@ -26,8 +26,7 @@ export interface InvoiceDetail {
   invoice_id: number
   status: InvoiceStatus
   final_data?: Record<string, any> // Define more specific type if known
-  preview_data?: Record<string, any> // Define more specific type if known
-  // Add other fields if returned by the API (e.g., filename, created_at)
+  preview?: Record<string, any> // Cambiado de preview_data a preview para que coincida con el API
 }
 
 // Structure for the status summary (GET /api/invoices/status-summary/)
@@ -86,4 +85,4 @@ export interface FetchInvoiceHistoryOptions {
   // dateTo?: string   // Not in current api.ts, but could be added based on docs
   sortBy?: keyof InvoiceListItem | string // Allow known keys or custom strings
   sortOrder?: "asc" | "desc"
-} 
+}
