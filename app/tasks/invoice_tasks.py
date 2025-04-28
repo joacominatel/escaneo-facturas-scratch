@@ -1,5 +1,5 @@
 from app.core.celery_app import celery
-from app.core.extensions import db
+from app.core.extensions import db, socketio
 from app.models.invoice import Invoice
 from app.models.invoice_log import InvoiceLog
 from app.services.openai_service import OpenAIService
@@ -19,16 +19,55 @@ def get_resource_usage():
         "cpu_percent": process.cpu_percent(interval=0.1)
     }
 
-# Context manager para administrar sesiones de base de datos
+# Context manager para administrar sesiones de base de datos y emitir eventos
 @contextlib.contextmanager
-def db_session_context():
-    """Context manager para asegurar que las sesiones se cierren correctamente"""
+def db_session_context_with_event(namespace='/invoices', event_name='invoice_status_update'):
+    """Context manager para asegurar commit y emitir evento SocketIO después."""
     session = db.session()
+    updated_invoice_data = None
     try:
         yield session
+        # Buscar la factura modificada antes del commit para obtener datos actualizados
+        # Esto asume que la factura relevante fue añadida o modificada en la sesión
+        for obj in session.identity_map.values():
+            if isinstance(obj, Invoice) and session.is_modified(obj):
+                 updated_invoice_data = {
+                     'id': obj.id,
+                     'status': obj.status,
+                     'filename': obj.filename
+                 }
+                 break # solo modificamos una factura por contexto
+            elif isinstance(obj, Invoice) and obj in session.new:
+                 # Para facturas nuevas (ej. estado 'processing' inicial)
+                 # el ID no estará hasta después del flush/commit
+                 pass
+
         session.commit()
+
+        # Intentar obtener datos de la factura recién creada si es necesario
+        if not updated_invoice_data:
+            for obj in session.identity_map.values():
+                 if isinstance(obj, Invoice) and obj in session.new:
+                      # Ahora debería tener ID después del commit
+                      updated_invoice_data = {
+                          'id': obj.id,
+                          'status': obj.status,
+                          'filename': obj.filename
+                      }
+                      break
+
+        # Emitir evento DESPUÉS del commit exitoso
+        if updated_invoice_data:
+            try:
+                socketio.emit(event_name, updated_invoice_data, namespace=namespace)
+                print(f"Evento SocketIO emitido: {event_name} para factura {updated_invoice_data['id']}")
+            except Exception as socket_err:
+                 # Loguear el error de emisión de SocketIO pero no revertir el commit de DB
+                 print(f"Error al emitir evento SocketIO: {socket_err}")
+
     except Exception as e:
         session.rollback()
+        print(f"Error en DB, rollback realizado: {e}")
         raise
     finally:
         session.close()
@@ -45,6 +84,7 @@ def process_invoice_task(self, invoice_id):
     - Monitoreo de uso de recursos
     - Caché para reducir procesamiento repetido
     - Liberación explícita de memoria
+    - Emisión de eventos SocketIO en cambios de estado
     """
     from app import create_app
     app = create_app()
@@ -62,7 +102,7 @@ def process_invoice_task(self, invoice_id):
     with app.app_context():
         try:
             # Obtener información inicial y actualizar estado
-            with db_session_context() as session:
+            with db_session_context_with_event() as session:
                 invoice = session.query(Invoice).filter_by(id=invoice_id).first()
                 if not invoice:
                     print(f"Factura no encontrada: {invoice_id}")
@@ -74,7 +114,6 @@ def process_invoice_task(self, invoice_id):
                 # Actualizar estado a "processing"
                 invoice.status = "processing"
                 session.add(InvoiceLog(invoice_id=invoice.id, event="processing_started", details="Iniciando procesamiento"))
-                session.commit()
 
             # Verificar que tenemos la ruta del archivo
             if not file_path or not os.path.exists(file_path):
@@ -87,7 +126,7 @@ def process_invoice_task(self, invoice_id):
             ocr_time = time.time() - ocr_start_time
 
             # Registrar resultados del OCR
-            with db_session_context() as session:
+            with db_session_context_with_event() as session:
                 # Obtener la factura nuevamente en esta sesión
                 invoice = session.query(Invoice).filter_by(id=invoice_id).first()
                 if not invoice:
@@ -98,8 +137,7 @@ def process_invoice_task(self, invoice_id):
                     event="ocr_extracted", 
                     details=f"OCR completado en {ocr_time:.2f} segundos."
                 ))
-                session.commit()
-                
+
             # 2. OpenAI - Procesar el texto y obtener datos estructurados
             if not raw_text or raw_text.strip() == "":
                 raise ValueError("El texto extraído por OCR está vacío")
@@ -114,7 +152,7 @@ def process_invoice_task(self, invoice_id):
             gc.collect()
             
             # 3. Actualizar base de datos con resultados
-            with db_session_context() as session:
+            with db_session_context_with_event() as session:
                 invoice = session.query(Invoice).filter_by(id=invoice_id).first()
                 if not invoice:
                     raise ValueError(f"No se pudo encontrar la factura {invoice_id} al actualizar resultados")
@@ -129,8 +167,7 @@ def process_invoice_task(self, invoice_id):
                     event="processing_completed", 
                     details=f"Datos extraídos en {openai_time:.2f} segundos."
                 ))
-                session.commit()
-                
+
             print(f"Procesamiento exitoso de factura {invoice_id}")
             
         except Exception as e:
@@ -138,7 +175,7 @@ def process_invoice_task(self, invoice_id):
             
             # Registrar el error en la base de datos
             try:
-                with db_session_context() as session:
+                with db_session_context_with_event() as session:
                     invoice = session.query(Invoice).filter_by(id=invoice_id).first()
                     if invoice:
                         invoice.status = "failed"
@@ -148,7 +185,6 @@ def process_invoice_task(self, invoice_id):
                             event="processing_failed", 
                             details=f"Error: {str(e)[:500]}"
                         ))
-                        session.commit()
             except Exception as db_error:
                 print(f"Error adicional al registrar falla: {str(db_error)}")
             
