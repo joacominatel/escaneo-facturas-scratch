@@ -74,11 +74,7 @@ export function InvoiceDetailsContent({ details }: InvoiceDetailsContentProps) {
                 </CardContent>
             </Card>
 
-            {/* Sección Ítems */}
-            <div>
-                <h4 className="text-sm font-medium mb-1">Detalle de Ítems</h4>
-                <InvoiceItemsTable items={items} currency={currency} />
-            </div>
+            {/* La sección de ítems se maneja ahora directamente en InvoiceDataModal */}
         </div>
     );
 }
