@@ -54,7 +54,7 @@ export function InvoiceDataModal({ invoiceId, isOpen, onOpenChange, trigger }: I
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             {trigger && trigger} {/* Renderizar trigger si se proporciona */}
-            <DialogContent className="sm:max-w-[80%] md:max-w-[70%] lg:max-w-[60%] xl:max-w-[50%] max-h-[90vh] flex flex-col">
+            <DialogContent className="sm:max-w-[80%] md:max-w-[70%] lg:max-w-[70%] xl:max-w-[60%] max-h-[90vh] flex flex-col">
                 <DialogHeader className="pr-6 pb-2 border-b">
                     <div className="flex justify-between items-start gap-4">
                         <DialogTitle className="text-lg">Detalles de Factura (ID: {invoiceId ?? '...'})</DialogTitle>
