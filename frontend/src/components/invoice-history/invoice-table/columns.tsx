@@ -5,14 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown } from "lucide-react";
 import { InvoiceListItem, InvoiceStatus } from "@/lib/api/types";
-import { InvoiceActions } from "@/components/invoice-history/invoice-actions"; // Ajusta si la ruta cambia
+import { InvoiceActions } from "@/components/invoice-history/invoice-actions";
 import { statusColorMap } from "./constants";
 
 type InvoiceCellContext = CellContext<InvoiceListItem, unknown>;
 
 // Definición de las columnas para la tabla de facturas
 export const getInvoiceTableColumns = (
-    onActionComplete: () => void // Pasar callback para refrescar desde acciones
+    onActionComplete: () => void, // Callback para refrescar lista
+    onViewDetails: (invoiceId: number) => void // Callback para abrir modal
 ): ColumnDef<InvoiceListItem>[] => [
     {
         id: "select",
@@ -93,7 +94,11 @@ export const getInvoiceTableColumns = (
         header: () => <div className="text-right pr-4">Acciones</div>,
         cell: ({ row }: InvoiceCellContext) => (
             <div className="text-right">
-                <InvoiceActions invoice={row.original} onActionComplete={onActionComplete} />
+                <InvoiceActions
+                    invoice={row.original}
+                    onActionComplete={onActionComplete}
+                    onViewDetails={() => onViewDetails(row.original.id)}
+                />
             </div>
         ),
         size: 50,

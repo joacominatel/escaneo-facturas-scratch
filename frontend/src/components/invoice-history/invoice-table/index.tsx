@@ -3,7 +3,8 @@
 import React, { useMemo } from 'react'
 import { useReactTable, flexRender, getCoreRowModel, getSortedRowModel, getPaginationRowModel, PaginationState } from "@tanstack/react-table"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { BulkActionBar } from "@/components/invoice-history/bulk-action-bar" // Mantener ruta original
+import { BulkActionBar } from "@/components/invoice-history/bulk-action-bar"
+import { InvoiceDataModal } from "@/components/invoice-data-modal"
 
 // Importaciones de la nueva estructura
 import { useInvoiceTable } from './use-invoice-table'
@@ -26,6 +27,8 @@ export function InvoiceTable() {
         isLive,
         isConnectingWs,
         hasActiveFilters,
+        isDetailModalOpen,
+        viewingInvoiceId,
         // Setters y Handlers
         setSorting,
         setPagination,
@@ -35,10 +38,15 @@ export function InvoiceTable() {
         toggleLiveUpdates,
         fetchData,
         resetFilters,
+        openDetailsModal,
+        setIsDetailModalOpen
     } = useInvoiceTable();
 
-    // Definir columnas (pasando el fetchData para el onActionComplete)
-    const columns = useMemo(() => getInvoiceTableColumns(() => fetchData(true)), [fetchData]);
+    // Definir columnas (pasando los handlers necesarios)
+    const columns = useMemo(() => getInvoiceTableColumns(
+        () => fetchData(true),
+        openDetailsModal
+    ), [fetchData, openDetailsModal]);
 
     // Instancia de la tabla
     const table = useReactTable({
@@ -53,10 +61,10 @@ export function InvoiceTable() {
         onRowSelectionChange: setRowSelection,
         manualPagination: true,
         manualSorting: true,
-        manualFiltering: true, // Ya que los filtros se aplican en la llamada API
+        manualFiltering: true,
         pageCount: Math.ceil(totalCount / pagination.pageSize),
         onSortingChange: setSorting,
-        onPaginationChange: setPagination, // Ahora usa el handler del hook
+        onPaginationChange: setPagination,
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
@@ -66,7 +74,7 @@ export function InvoiceTable() {
     // Obtener datos de filas seleccionadas para BulkActionBar
     const selectedRowsData = useMemo(() => {
         return table.getSelectedRowModel().rows.map(row => row.original);
-    }, [rowSelection, table]); // Depender de rowSelection y la instancia de tabla
+    }, [rowSelection, table]);
 
     return (
         <div className="space-y-4 relative pb-20"> {/* Padding para BulkActionBar */}
@@ -153,6 +161,13 @@ export function InvoiceTable() {
                 selectedInvoices={selectedRowsData}
                 onActionComplete={() => fetchData(true)}
                 onClearSelection={() => setRowSelection({})} // Pasar el setter directamente
+            />
+
+            {/* Modal de Detalles */}
+            <InvoiceDataModal
+                isOpen={isDetailModalOpen}
+                invoiceId={viewingInvoiceId}
+                onOpenChange={setIsDetailModalOpen}
             />
         </div>
     );

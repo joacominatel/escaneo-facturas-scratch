@@ -19,9 +19,10 @@ import { useRouter } from 'next/navigation' // Para la redirección
 interface InvoiceActionsProps {
   invoice: InvoiceListItem
   onActionComplete: () => void // Para refrescar la lista después de una acción
+  onViewDetails: () => void; // <--- Añadir la nueva prop
 }
 
-export function InvoiceActions({ invoice, onActionComplete }: InvoiceActionsProps) {
+export function InvoiceActions({ invoice, onActionComplete, onViewDetails }: InvoiceActionsProps) {
   const router = useRouter()
   const {
     confirmInvoice,
@@ -75,11 +76,7 @@ export function InvoiceActions({ invoice, onActionComplete }: InvoiceActionsProp
   }
 
   const handleView = () => {
-    // Navegar a una página de detalle o mostrar un modal
-    // Por ahora, asumimos una página de detalle
-    // TODO: Implementar la página de detalle en /history/[id] o similar
-    toast.info("Acción 'Ver' no implementada", { description: `Redirigir a detalle para factura ${invoice.id}` })
-    // router.push(`/history/${invoice.id}`)
+    onViewDetails(); // Llamar a la función pasada desde la tabla
   }
 
   const handleRedirectToOriginal = () => {
@@ -88,10 +85,6 @@ export function InvoiceActions({ invoice, onActionComplete }: InvoiceActionsProp
     const params = new URLSearchParams(window.location.search)
     params.set("search", invoice.filename) // Buscar por nombre
     params.delete("status") // Quitar filtro de estado actual (si existe)
-    // Añadir filtro para excluir 'duplicated'? La API debería manejar esto
-    // params.append("status", "processed") // Ejemplo: buscar solo procesadas
-    // params.append("status", "waiting_validation")
-    // ... otros estados posibles donde podría estar la original
 
     // Recargar la página con los nuevos parámetros de búsqueda
     router.push(`${window.location.pathname}?${params.toString()}`)
