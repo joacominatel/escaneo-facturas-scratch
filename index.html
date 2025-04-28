@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #log { border: 1px solid #ccc; padding: 10px; height: 400px; overflow-y: scroll; margin-top: 10px; background-color: #f9f9f9; }
+        .log-entry { margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #eee; }
+        .log-entry.connect { color: green; }
+        .log-entry.disconnect { color: orange; }
+        .log-entry.error { color: red; font-weight: bold; }
+        .log-entry.message { color: blue; }
+        .log-entry time { color: #555; font-size: 0.9em; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <p>Check the browser's developer console and the log below for messages.</p>
+    <p>Connecting to: <code>ws://localhost:8010</code> (Namespace: <code>/invoices</code>)</p>
+    <div id="log"></div>
+
+    <!-- Load Socket.IO client library from CDN -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <!-- Load our test script -->
+    <script src="test.js"></script>
+</body>
+</html> 
