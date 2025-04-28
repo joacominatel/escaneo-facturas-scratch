@@ -6,7 +6,7 @@ from flask_socketio import SocketIO
 cors = CORS()
 db = SQLAlchemy()
 migrate = Migrate()
-socketio = SocketIO()
+socketio = SocketIO(cors_allowed_origins="*")
 
 def init_extensions(app):
     cors.init_app(app, origins=["*"])
