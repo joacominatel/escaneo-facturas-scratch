@@ -15,6 +15,7 @@ import {
   Column,
   HeaderGroup,
   Row,
+  RowSelectionState,
 } from "@tanstack/react-table"
 import {
   Table,
@@ -28,8 +29,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 
 import {
   ArrowUpDown,
@@ -43,12 +45,22 @@ import {
 
 import { InvoiceListItem, InvoiceStatus, FetchInvoiceHistoryOptions } from "@/lib/api/types"
 import { fetchInvoiceHistory } from "@/lib/api/invoices"
-import { InvoiceActions } from './invoice-actions'
-import { useDebounce } from "@/hooks/use-debounce" // Asegúrate que este hook existe
-import { LiveUpdateButton } from './live-update-button'
+import { InvoiceActions } from '@/components/invoice-history/invoice-actions'
+import { useDebounce } from "@/hooks/use-debounce"
+import { LiveUpdateButton } from '@/components/invoice-history/live-update-button'
+import { BulkActionBar } from '@/components/invoice-history/bulk-action-bar'
 import { connectToInvoiceUpdates, disconnectFromInvoiceUpdates, isInvoiceSocketConnected } from '@/lib/ws/invoice-updates'
 import { toast } from 'sonner'
-// import type { DisconnectReason } from 'socket.io-client' // Comentado ya que no se exporta directamente
+
+// Colores pastel para los badges de estado (clases de Tailwind)
+const statusColorMap: Record<InvoiceStatus, string> = {
+  processing: "bg-blue-100 text-blue-800 hover:bg-blue-200",
+  waiting_validation: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
+  processed: "bg-green-100 text-green-800 hover:bg-green-200",
+  failed: "bg-red-100 text-red-800 hover:bg-red-200",
+  rejected: "bg-orange-100 text-orange-800 hover:bg-orange-200", // Usando naranja para rechazado
+  duplicated: "bg-gray-100 text-gray-800 hover:bg-gray-200",
+};
 
 const INVOICE_STATUSES: InvoiceStatus[] = [
   "processing",
@@ -79,6 +91,7 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
   // Table State
   const [sorting, setSorting] = useState<SortingState>([{ id: 'created_at', desc: true }])
   const [{ pageIndex, pageSize }, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStatuses, setSelectedStatuses] = useState<Set<InvoiceStatus>>(new Set())
 
@@ -90,12 +103,15 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
 
   // Fetching logic
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (resetSelection = false) => {
     setIsLoading(true)
     setError(null)
+    if(resetSelection) {
+        setRowSelection({})
+    }
     try {
       const options: FetchInvoiceHistoryOptions = {
-        page: pageIndex + 1, // API usa 1-based index
+        page: pageIndex + 1,
         perPage: pageSize,
         search: debouncedSearchTerm || undefined,
         status: selectedStatuses.size > 0 ? Array.from(selectedStatuses) : undefined,
@@ -105,10 +121,7 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
       const result = await fetchInvoiceHistory(options)
       setData(result.invoices)
       setTotalCount(result.total)
-      // Asumiendo que la API devuelve 'pages' como total de páginas
-      // Si no, necesitaríamos calcularlo: Math.ceil(result.total / pageSize)
-      // setPageCount(result.pages) // Si la API no lo da, react-table lo calcula
-    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
       console.error("Error fetching invoice history:", err)
       setError(err.message || "Failed to fetch invoices")
       setData([])
@@ -121,7 +134,7 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
 
   // Initial fetch and refetch on dependency change
   useEffect(() => {
-    fetchData()
+    fetchData(true)
   }, [fetchData])
 
   // --- WebSocket Handlers ---
@@ -132,13 +145,13 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
     toast.success('Conexión Live establecida')
   }
 
-  // Usar 'string' ya que DisconnectReason no parece estar disponible fácilmente
-  const handleWsDisconnect = (reason: string) => {
-    console.log('WS Disconnected:', reason)
-    setIsConnectingWs(false)
-    setIsLive(false)
-    if (reason !== 'io client disconnect') { // Comparar con el string específico
-      toast.warning('Conexión Live perdida', { description: `Razón: ${reason}` })
+  const handleWsDisconnect = (reason: unknown) => {
+    const reasonString = String(reason);
+    console.log('WS Disconnected:', reasonString);
+    setIsConnectingWs(false);
+    setIsLive(false);
+    if (reasonString !== 'io client disconnect') {
+      toast.warning('Conexión Live perdida', { description: `Razón: ${reasonString}` });
     }
   }
 
@@ -152,21 +165,16 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
   const handleWsStatusUpdate = (update: { id: number; status: string; filename: string }) => {
     console.log('WS Invoice Status Update:', update)
     toast.info(`Factura ${update.filename} actualizada a ${update.status}`)
-    // Opcional: Actualizar solo la fila afectada en lugar de refetch completo
     setData(currentData =>
       currentData.map(invoice =>
         invoice.id === update.id ? { ...invoice, status: update.status as InvoiceStatus } : invoice
       )
     )
-    // O simplemente refetch para asegurar consistencia total:
-    // fetchData()
   }
 
   const toggleLiveUpdates = () => {
     if (isLive) {
       disconnectFromInvoiceUpdates()
-      setIsLive(false)
-      toast.info('Conexión Live desactivada')
     } else {
       setIsConnectingWs(true)
       connectToInvoiceUpdates({
@@ -190,6 +198,31 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
   // Table Columns Definition
   const columns = useMemo<ColumnDef<InvoiceListItem>[]>(() => [
     {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Seleccionar todas las filas de la página actual"
+          className="translate-y-[2px]"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Seleccionar fila"
+          className="translate-y-[2px]"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+      size: 40,
+    },
+    {
       accessorKey: "filename",
       header: ({ column }: { column: Column<InvoiceListItem, unknown> }) => (
         <Button
@@ -201,15 +234,20 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
         </Button>
       ),
       cell: ({ row }: InvoiceCellContext) => <div className="font-medium">{row.getValue("filename")}</div>,
-      size: 300, // Ejemplo de tamaño
+      size: 300,
     },
     {
       accessorKey: "status",
       header: "Estado",
       cell: ({ row }: InvoiceCellContext) => {
         const status = row.getValue("status") as InvoiceStatus
-        // TODO: Add nice badges for status
-        return <span className="capitalize">{status.replace('_', ' ')}</span>
+        const colorClass = statusColorMap[status] || statusColorMap.duplicated;
+
+        return (
+          <Badge variant="outline" className={`border-none ${colorClass}`}>
+             {status.replace('_', ' ')}
+          </Badge>
+        )
       },
       size: 150,
     },
@@ -227,7 +265,7 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
       cell: ({ row }: InvoiceCellContext) => {
         try {
           const date = new Date(row.getValue("created_at"))
-          return <div suppressHydrationWarning>{date.toLocaleString()}</div> // suppressHydrationWarning por si SSR/CSR difieren
+          return <div suppressHydrationWarning>{date.toLocaleString()}</div>
         } catch (e) {
             return <div>Fecha inválida</div>
         }
@@ -236,15 +274,15 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
     },
     {
       id: "actions",
-      header: () => <div className="text-right">Acciones</div>,
+      header: () => <div className="text-right pr-4">Acciones</div>,
       cell: ({ row }: InvoiceCellContext) => (
         <div className="text-right">
-            <InvoiceActions invoice={row.original} onActionComplete={fetchData} />
+            <InvoiceActions invoice={row.original} onActionComplete={() => fetchData(true)} />
         </div>
       ),
       size: 50,
     },
-  ], [fetchData]) // fetchData en deps para que onActionComplete esté actualizado
+  ], [fetchData])
 
   // Pagination logic derived state
   const pageCount = useMemo(() => Math.ceil(totalCount / pageSize), [totalCount, pageSize])
@@ -256,18 +294,29 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
     state: {
       sorting,
       pagination: { pageIndex, pageSize },
+      rowSelection,
     },
-    manualPagination: true, // La paginación se maneja manualmente (API)
-    manualSorting: true,    // La ordenación se maneja manualmente (API)
-    manualFiltering: true, // El filtrado se maneja manualmente (API)
-    pageCount: pageCount, // Informar a la tabla del total de páginas
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
+    pageCount: pageCount,
     onSortingChange: setSorting,
-    onPaginationChange: setPagination,
+    onPaginationChange: (updater) => {
+        setRowSelection({});
+        setPagination(updater);
+    },
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(), // Necesario si usamos ordenación interna
-    getPaginationRowModel: getPaginationRowModel(), // Necesario para controles de paginación
-    debugTable: process.env.NODE_ENV === 'development', // Logs útiles en dev
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    debugTable: process.env.NODE_ENV === 'development',
   })
+
+  // Obtener las filas seleccionadas para pasarlas a la barra de acciones
+  const selectedRowsData = useMemo(() => {
+    return table.getSelectedRowModel().rows.map(row => row.original);
+  }, [rowSelection, table]);
 
   // Status Filter Component
   const StatusFilter = () => (
@@ -285,7 +334,6 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0" align="start">
         <Command>
-          {/* <CommandInput placeholder="Buscar estado..." /> */}
           <CommandList>
             <CommandEmpty>No encontrado.</CommandEmpty>
             <CommandGroup>
@@ -301,6 +349,7 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
                     }
                     setSelectedStatuses(newSelection)
                     setPagination((p: PaginationState) => ({ ...p, pageIndex: 0 }))
+                    setRowSelection({})
                   }}
                 >
                   <Checkbox
@@ -315,6 +364,7 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
                       }
                       setSelectedStatuses(newSelection)
                       setPagination((p: PaginationState) => ({ ...p, pageIndex: 0 }))
+                      setRowSelection({})
                     }}
                     aria-labelledby={`filter-label-${status}`}
                   />
@@ -326,12 +376,13 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
             </CommandGroup>
             {selectedStatuses.size > 0 && (
               <>
-                <CommandList /> {/* Separator doesn't seem to exist, use list */} 
+                <CommandList />
                 <CommandGroup>
                   <CommandItem
                     onSelect={() => {
                        setSelectedStatuses(new Set())
                        setPagination((p: PaginationState) => ({ ...p, pageIndex: 0 }))
+                       setRowSelection({})
                      }}
                     className="justify-center text-center text-muted-foreground hover:text-destructive"
                   >
@@ -347,15 +398,15 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
   )
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative pb-20">
       {/* Filters and Actions Toolbar */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Input
-            placeholder="Buscar por nombre de archivo..."
+            placeholder="Buscar por nombre..."
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            className="h-8 w-[150px] lg:w-[250px]"
+            className="h-8 w-[150px] lg:w-[200px]"
           />
           <StatusFilter />
           { (debouncedSearchTerm || selectedStatuses.size > 0) && (
@@ -365,6 +416,7 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
                 setSearchTerm("")
                 setSelectedStatuses(new Set())
                 setPagination((p: PaginationState) => ({ ...p, pageIndex: 0 }))
+                setRowSelection({})
               }}
               className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-destructive"
             >
@@ -417,6 +469,7 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={row.getIsSelected() ? "bg-muted/50" : ""}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -439,9 +492,22 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
       {/* Pagination */}
       <div className="flex items-center justify-between space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          {/* Podríamos añadir selección de filas si fuera necesario */} 
-          {/* {table.getFilteredSelectedRowModel().rows.length} of{" "} */} 
+          {table.getFilteredSelectedRowModel().rows.length > 0 && (
+            <span>
+               {table.getFilteredSelectedRowModel().rows.length} de{" "}
+            </span>
+          )}
           {totalCount} fila(s) en total.
+          {table.getFilteredSelectedRowModel().rows.length > 0 && (
+             <Button
+                variant="link"
+                size="sm"
+                className="ml-4 h-auto p-0 text-xs"
+                onClick={() => setRowSelection({}) }
+            >
+                Limpiar selección
+            </Button>
+          )}
         </div>
         <div className="flex items-center space-x-6 lg:space-x-8">
           <div className="flex items-center space-x-2">
@@ -449,6 +515,7 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
             <Select
               value={`${pageSize}`}
               onValueChange={(value) => {
+                setRowSelection({});
                 setPagination({ pageIndex: 0, pageSize: Number(value) })
               }}
             >
@@ -507,6 +574,13 @@ export function InvoiceTable({ /* initialData, initialTotalCount, initialPageCou
           </div>
         </div>
       </div>
+
+      {/* Barra de acciones flotante */}
+      <BulkActionBar
+        selectedInvoices={selectedRowsData}
+        onActionComplete={() => fetchData(true)}
+        onClearSelection={() => setRowSelection({})}
+      />
     </div>
   )
 } 
