@@ -45,6 +45,10 @@ export function useInvoiceTable() {
     const [isLive, setIsLive] = useState(false);
     const [isConnectingWs, setIsConnectingWs] = useState(false);
 
+    // --- Estado para el Modal de Detalles ---
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [viewingInvoiceId, setViewingInvoiceId] = useState<number | null>(null);
+
     // --- Sincronización con localStorage --- 
     useEffect(() => {
         const currentStoredArray = storedStatuses || [];
@@ -181,6 +185,18 @@ export function useInvoiceTable() {
         return searchTerm !== "" || selectedStatuses.size > 0;
     }, [searchTerm, selectedStatuses]);
 
+    // --- Handlers para el Modal ---
+    const handleViewDetails = useCallback((invoiceId: number) => {
+        setViewingInvoiceId(invoiceId);
+        setIsDetailModalOpen(true);
+    }, []);
+
+    const handleCloseDetailsModal = useCallback(() => {
+        setIsDetailModalOpen(false);
+        // Podríamos resetear el ID aquí o esperar a que el modal lo haga al cerrarse
+        // setViewingInvoiceId(null);
+    }, []);
+
     // --- Valor de Retorno del Hook --- 
     return {
         // Estado
@@ -196,14 +212,18 @@ export function useInvoiceTable() {
         isLive,
         isConnectingWs,
         hasActiveFilters,
+        isDetailModalOpen,
+        viewingInvoiceId,
         // Setters y Handlers
         setSorting,
-        setPagination: handlePaginationChange, // Usar el wrapper que limpia selección
+        setPagination: handlePaginationChange,
         setRowSelection,
         setSearchTerm,
         setSelectedStatuses,
         toggleLiveUpdates,
-        fetchData, // Exponer para refresh manual si es necesario
+        fetchData,
         resetFilters,
+        openDetailsModal: handleViewDetails,
+        setIsDetailModalOpen,
     };
 } 
