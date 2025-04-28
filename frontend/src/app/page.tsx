@@ -1,7 +1,6 @@
 import { Suspense } from "react"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
-import { InvoiceStatusCards } from "@/components/dashboard/invoice-status-cards"
 import { InvoiceCharts } from "@/components/dashboard/invoice-charts"
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import RecentInvoices from "@/components/dashboard/recent-invoices/recent-invoices"
@@ -14,7 +13,6 @@ export default function DashboardPage() {
           <DashboardHeader heading="Invoice Dashboard" text="Monitor and manage your invoice processing workflow." />
           <Suspense fallback={<DashboardSkeleton />}>
             <div className="grid gap-6">
-              <InvoiceStatusCards />
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
                 <InvoiceCharts className="lg:col-span-4" />
                 <RecentInvoices />
