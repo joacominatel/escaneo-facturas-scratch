@@ -1,5 +1,5 @@
 ---
-description: Flask API documentation for invoices
+description: Docs de API Flask (backend)
 globs: 
 alwaysApply: false
 ---
@@ -30,7 +30,9 @@ _(Note: Authentication details are not specified in the provided code snippets. 
 `POST /api/invoices/ocr`
 
 **Description:**
-Uploads one or more invoice files (PDF, JPEG, PNG) for asynchronous processing. The system saves the file, creates an initial `Invoice` record with status `processing`, and queues a background task (Celery) to perform OCR and data extraction.
+Uploads one or more invoice files (PDF, JPEG, PNG) for asynchronous processing. The system saves the file, creates an initial `Invoice` record with status `processing`, and queues a background task (Celery - specifically `process_invoice_task`) to perform OCR and AI-based data extraction.
+
+**Important:** This endpoint returns immediately after accepting the files (202 Accepted). The actual processing happens in the background. You should monitor the invoice status via the `GET /api/invoices/<id>` endpoint or listen for WebSocket events.
 
 **Request:**
 - **Content-Type:** `multipart/form-data`
@@ -150,7 +152,15 @@ If there's an error querying the database.
 `GET /api/invoices/<int:invoice_id>`
 
 **Description:**
-Retrieves detailed information for a specific invoice, including its status and extracted data (preview or final).
+Retrieves detailed information for a specific invoice, including its current `status` reflecting the background processing stage, and extracted data (`preview_data` or `final_data`).
+
+**Possible Statuses:**
+- `processing`: The background task has started or is actively working on OCR/AI extraction.
+- `waiting_validation`: The background task completed successfully. `preview_data` contains the extracted information, pending user confirmation via the `confirm` endpoint.
+- `processed`: The invoice data has been confirmed (via the `confirm` endpoint) and moved to `final_data`. Processing is complete.
+- `failed`: The background task encountered an error during processing. Check `InvoiceLog` (if available via another endpoint or logs) for details. Can be retried using the `retry` endpoint.
+- `rejected`: The invoice was manually rejected via the `reject` endpoint. Can be retried using the `retry` endpoint.
+- `duplicated`: The uploaded file was detected as a duplicate based on its filename during the initial upload.
 
 **Path Parameters:**
 - `invoice_id` (integer, required): The ID of the invoice to retrieve.
@@ -176,7 +186,7 @@ Retrieves detailed information for a specific invoice, including its status and 
   }
 }
 ```
-*(Note: `preview_data` might be populated during an intermediate validation step, while `final_data` holds the confirmed data).*
+*(Note: `preview_data` contains the data extracted by the background task (`process_invoice_task`). `final_data` holds the data after it has been explicitly confirmed via the `POST /confirm` endpoint. They might be identical if confirmation happens without changes).*
 
 **Response (Error - 404 Not Found):**
 If the invoice with the specified ID does not exist.
@@ -193,7 +203,7 @@ If the invoice with the specified ID does not exist.
 `POST /api/invoices/<int:invoice_id>/confirm`
 
 **Description:**
-Confirms the data extracted for an invoice (likely from `preview_data`). This typically moves the data from `preview_data` to `final_data` and updates the invoice status to `processed`.
+Confirms the data extracted by the background task for an invoice currently in the `waiting_validation` state. This copies the data from `preview_data` to `final_data` and updates the invoice status to `processed`.
 
 **Path Parameters:**
 - `invoice_id` (integer, required): The ID of the invoice to confirm.
@@ -230,7 +240,7 @@ If the invoice has no `preview_data` to confirm.
 `POST /api/invoices/<int:invoice_id>/reject`
 
 **Description:**
-Manually rejects an invoice. This is typically used when the extracted data requires correction or the invoice is invalid.
+Manually rejects an invoice, typically when it's in `waiting_validation`, `processing`, or `failed` state. This sets the status to `rejected`. Rejected invoices can be retried.
 
 **Path Parameters:**
 - `invoice_id` (integer, required): The ID of the invoice to reject.
@@ -276,7 +286,7 @@ If the invoice is not in a state that allows rejection (e.g., already `processed
 `POST /api/invoices/<int:invoice_id>/retry`
 
 **Description:**
-Requests a retry for an invoice that previously failed processing or was rejected. This sets the status back to `processing` and re-queues the background processing task.
+Requests a retry for an invoice that previously `failed` processing or was `rejected`. This sets the status back to `processing` and re-queues the `process_invoice_task` background job.
 
 **Path Parameters:**
 - `invoice_id` (integer, required): The ID of the invoice to retry.
@@ -406,5 +416,50 @@ Returns a paginated list of structured invoice data.
 ```
 *(Note: The `total` in the response reflects the count after filtering, if `op_number` is used).*
 
+---
+
+## 📡 Real-time Updates via WebSockets
+
+The API utilizes WebSockets (likely via Flask-SocketIO) to push real-time status updates for invoices as they are processed by the background task.
+
+**Namespace:** `/invoices`
+
+**Event:** `invoice_status_update`
+
+**Description:**
+This event is emitted whenever the status of an invoice changes during its lifecycle (e.g., when processing starts, finishes successfully, fails, or is manually confirmed/rejected).
+
+**Data Payload:**
+The data sent with the event provides the current state of the invoice:
+```json
+{
+  "id": <integer>,         // The ID of the invoice that was updated
+  "status": "<string>",    // The new status of the invoice (e.g., "processing", "waiting_validation", "processed", "failed", "rejected")
+  "filename": "<string>"   // The filename of the invoice
+}
+```
+
+**Example Usage (Conceptual JavaScript):**
+```javascript
+// Assumes socket.io client library is included
+const socket = io('/invoices'); // Connect to the namespace
+
+socket.on('connect', () => {
+  console.log('Connected to WebSocket namespace /invoices');
+});
+
+socket.on('invoice_status_update', (data) => {
+  console.log('Invoice Status Update Received:', data);
+  // Update your UI based on data.id and data.status
+  // e.g., update status display for invoice with ID data.id
+  //       to show the new status data.status
+});
+
+socket.on('disconnect', () => {
+  console.log('Disconnected from WebSocket');
+});
+```
+
+This allows clients to reflect the progress and final state of invoice processing without needing to continuously poll the API endpoints.
 
 ---
