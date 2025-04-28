@@ -48,13 +48,14 @@ def update_invoice_preview(invoice_id):
             return jsonify({"error": f"Factura con ID {invoice_id} no encontrada"}), 404
 
         # Actualizar el campo preview_data.
-        # Dado que el ejemplo muestra preview_data como string JSON, lo serializamos.
-        # Si tu columna es de tipo JSON/JSONB nativo, podrías asignar el dict directamente.
+        # Asignar el diccionario directamente (asumiendo columna JSON/JSONB nativo)
         try:
-            invoice.preview_data = json.dumps(new_preview_data)
-        except TypeError as e:
-             session.rollback()
-             return jsonify({"error": f"Error al serializar 'preview_data' a JSON: {str(e)}"}), 400
+            invoice.preview_data = new_preview_data # Asignar el dict directamente
+        except Exception as e: # Captura errores más generales si la asignación falla
+            session.rollback()
+            # Puedes loggear el error específico si quieres más detalle
+            print(f"Error al asignar preview_data (tipo {type(new_preview_data)}): {e}")
+            return jsonify({"error": f"Error al procesar 'preview_data'"}), 400
 
         # Actualizar timestamp
         invoice.updated_at = datetime.datetime.utcnow()
