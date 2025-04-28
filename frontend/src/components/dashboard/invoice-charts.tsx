@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from "recharts"
-import { fetchInvoiceChartData } from "@/lib/api"
+import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts"
+import { fetchInvoiceChartData, InvoiceStatusSummary, InvoiceStatus } from "@/lib/api"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
@@ -14,40 +13,58 @@ interface InvoiceChartsProps {
   className?: string
 }
 
+interface StatusPieDataPoint {
+  name: string
+  value: number
+  fill: string
+  status: InvoiceStatus
+}
+
+const statusConfig: Record<InvoiceStatus, { label: string; color: string }> = {
+  processed: { label: "Processed", color: "hsl(142, 71%, 44%)" },
+  waiting_validation: { label: "Waiting Validation", color: "hsl(199, 89%, 46%)" },
+  processing: { label: "Processing", color: "hsl(262, 83%, 56%)" },
+  failed: { label: "Failed", color: "hsl(0, 74%, 52%)" },
+  rejected: { label: "Rejected", color: "hsl(31, 90%, 55%)" },
+  duplicated: { label: "Duplicated", color: "hsl(45, 93%, 48%)" },
+}
+
 export function InvoiceCharts({ className }: InvoiceChartsProps) {
-  const [chartData, setChartData] = useState<any[]>([])
+  const [chartData, setChartData] = useState<StatusPieDataPoint[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const getChartData = async () => {
       try {
         setIsLoading(true)
-        const data = await fetchInvoiceChartData()
-        setChartData(data)
+        const summaryData: InvoiceStatusSummary = await fetchInvoiceChartData()
+        
+        const transformedData = Object.entries(summaryData.summary)
+          .map(([status, count]) => {
+            const config = statusConfig[status as InvoiceStatus]
+            return {
+              name: config?.label || status,
+              value: count || 0,
+              fill: config?.color || '#ccc',
+              status: status as InvoiceStatus,
+            }
+          })
+          .filter(item => item.value > 0)
+          .sort((a, b) => a.status.localeCompare(b.status))
+
+        setChartData(transformedData)
+
       } catch (err) {
         console.error("Failed to fetch chart data:", err)
-        toast("Failed to load chart data. Using sample data instead.")
-        // Fallback data
-        setChartData(generateSampleData())
+        toast("Failed to load chart data. Displaying empty chart.")
+        setChartData([])
       } finally {
         setIsLoading(false)
       }
     }
 
     getChartData()
-  }, [toast])
-
-  const generateSampleData = () => {
-    return [
-      { date: "Jan", processed: 65, pending: 28, failed: 12 },
-      { date: "Feb", processed: 59, pending: 48, failed: 8 },
-      { date: "Mar", processed: 80, pending: 40, failed: 10 },
-      { date: "Apr", processed: 81, pending: 47, failed: 15 },
-      { date: "May", processed: 56, pending: 32, failed: 5 },
-      { date: "Jun", processed: 55, pending: 27, failed: 4 },
-      { date: "Jul", processed: 40, pending: 24, failed: 6 },
-    ]
-  }
+  }, [])
 
   return (
     <motion.div
@@ -56,132 +73,55 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
       transition={{ duration: 0.4, delay: 0.1 }}
       className={cn("", className)}
     >
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Invoice Processing Trends</CardTitle>
-              <CardDescription>Monthly breakdown of invoice processing status</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              {isLoading ? (
-                <div className="flex h-full items-center justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-                </div>
-              ) : (
-                <ChartContainer
-                  config={{
-                    processed: {
-                      label: "Processed",
-                      color: "hsl(142, 76%, 87%)",
-                    },
-                    waiting_validation: {
-                      label: "Waiting Validation",
-                      color: "hsl(199, 89%, 86%)",
-                    },
-                    processing: {
-                      label: "Processing",
-                      color: "hsl(262, 83%, 86%)",
-                    },
-                    failed: {
-                      label: "Failed",
-                      color: "hsl(0, 84%, 90%)",
-                    },
-                    rejected: {
-                      label: "Rejected",
-                      color: "hsl(31, 90%, 85%)",
-                    },
-                    duplicated: {
-                      label: "Duplicated",
-                      color: "hsl(45, 93%, 85%)",
-                    },
-                  }}
-                >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Legend />
-                      <Bar dataKey="processed" fill="var(--color-processed)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="waiting_validation" fill="var(--color-waiting_validation)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="processing" fill="var(--color-processing)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="failed" fill="var(--color-failed)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="rejected" fill="var(--color-rejected)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="duplicated" fill="var(--color-duplicated)" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="analytics" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Processing Performance</CardTitle>
-              <CardDescription>Trend analysis of invoice processing over time</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              {isLoading ? (
-                <div className="flex h-full items-center justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-                </div>
-              ) : (
-                <ChartContainer
-                  config={{
-                    processed: {
-                      label: "Processed",
-                      color: "hsl(142, 76%, 87%)",
-                    },
-                    waiting_validation: {
-                      label: "Waiting Validation",
-                      color: "hsl(199, 89%, 86%)",
-                    },
-                    processing: {
-                      label: "Processing",
-                      color: "hsl(262, 83%, 86%)",
-                    },
-                    failed: {
-                      label: "Failed",
-                      color: "hsl(0, 84%, 90%)",
-                    },
-                    rejected: {
-                      label: "Rejected",
-                      color: "hsl(31, 90%, 85%)",
-                    },
-                    duplicated: {
-                      label: "Duplicated",
-                      color: "hsl(45, 93%, 85%)",
-                    },
-                  }}
-                >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Legend />
-                      <Line type="monotone" dataKey="processed" stroke="var(--color-processed)" strokeWidth={2} />
-                      <Line type="monotone" dataKey="waiting_validation" stroke="var(--color-waiting_validation)" strokeWidth={2} />
-                      <Line type="monotone" dataKey="processing" stroke="var(--color-processing)" strokeWidth={2} />
-                      <Line type="monotone" dataKey="failed" stroke="var(--color-failed)" strokeWidth={2} />
-                      <Line type="monotone" dataKey="rejected" stroke="var(--color-rejected)" strokeWidth={2} />
-                      <Line type="monotone" dataKey="duplicated" stroke="var(--color-duplicated)" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <Card className="h-full flex flex-col">
+        <CardHeader>
+          <CardTitle>Invoice Status Distribution</CardTitle>
+          <CardDescription>Current breakdown of invoices by status</CardDescription>
+        </CardHeader>
+        <CardContent className="flex-1 pb-0">
+          {isLoading ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            </div>
+          ) : chartData.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              No status data available.
+            </div>
+           ) : (
+            <ChartContainer config={statusConfig} className="h-full w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <ChartTooltip 
+                     cursor={false}
+                     content={<ChartTooltipContent hideLabel nameKey="name" />} 
+                   />
+                  <Pie
+                    data={chartData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    innerRadius={60}
+                    paddingAngle={2}
+                    labelLine={false}
+                    label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
+                  >
+                    {chartData.map((entry) => (
+                      <Cell key={`cell-${entry.status}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                   <Legend 
+                     verticalAlign="bottom" 
+                     height={36} 
+                     wrapperStyle={{ paddingBottom: '10px'}} 
+                   />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          )}
+        </CardContent>
+      </Card>
     </motion.div>
   )
 }

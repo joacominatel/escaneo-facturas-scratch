@@ -6,7 +6,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FileCheck, FileWarning, FileClock, FileX } from 'lucide-react'
-import { fetchInvoiceStatusSummary } from "@/lib/api"
+import { fetchInvoiceStatusSummary, InvoiceStatusSummary } from "@/lib/api"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
@@ -38,7 +38,7 @@ function StatusCard({ title, value, icon, description, className }: StatusCardPr
 }
 
 export function InvoiceStatusCards() {
-  const [statusData, setStatusData] = useState<Record<string, number> | null>(null)
+  const [statusData, setStatusData] = useState<InvoiceStatusSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -58,7 +58,7 @@ export function InvoiceStatusCards() {
     }
 
     getStatusSummary()
-  }, [toast])
+  }, [])
 
   if (isLoading) {
     return (
@@ -83,9 +83,9 @@ export function InvoiceStatusCards() {
     )
   }
 
-  // Fallback data in case the API fails
-  // Update the status data to match the new status types
-  const data = statusData || {
+  const summary = statusData?.summary || {}
+
+  const defaultSummary: Partial<Record<import("@/lib/api").InvoiceStatus, number>> = {
     processed: 124,
     waiting_validation: 32,
     processing: 18,
@@ -93,6 +93,8 @@ export function InvoiceStatusCards() {
     rejected: 15,
     duplicated: 3,
   }
+
+  const data = { ...defaultSummary, ...summary }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

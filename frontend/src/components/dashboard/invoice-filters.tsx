@@ -7,39 +7,81 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DatePickerWithRange } from "@/components/date-picker-with-range"
+import type { DateRange } from "react-day-picker"
 import { Filter, X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+// Import types for filters
+import { InvoiceStatus, FetchInvoiceHistoryOptions } from "@/lib/api"
 
-export function InvoiceFilters() {
+// Define the state structure for filters, closely matching FetchInvoiceHistoryOptions
+interface FilterState {
+  status: InvoiceStatus | "" // Use empty string for "All"
+  search: string
+  dateRange?: DateRange // Make dateRange optional to match react-day-picker type
+}
+
+// Define available statuses for the dropdown
+const availableStatuses: { value: InvoiceStatus | ""; label: string }[] = [
+  { value: "", label: "All Statuses" },
+  { value: "processed", label: "Processed" },
+  { value: "waiting_validation", label: "Waiting Validation" },
+  { value: "processing", label: "Processing" },
+  { value: "failed", label: "Failed" },
+  { value: "rejected", label: "Rejected" },
+  { value: "duplicated", label: "Duplicated" },
+]
+
+// Prop type for when the component needs to notify parent about filter changes
+interface InvoiceFiltersProps {
+  onFiltersApply?: (appliedFilters: FetchInvoiceHistoryOptions) => void
+}
+
+export function InvoiceFilters({ onFiltersApply }: InvoiceFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [filters, setFilters] = useState<{
-    status: string
-    search: string
-    dateRange: { from: Date | undefined; to: Date | undefined }
-  }>({
+  const [filters, setFilters] = useState<FilterState>({
     status: "",
     search: "",
-    dateRange: {
-      from: undefined,
-      to: undefined,
-    },
+    dateRange: undefined // Initialize as undefined
   })
 
+  // Check if any filter is active (excluding default empty values)
+  const isAnyFilterActive = 
+    filters.status !== "" || 
+    filters.search !== "" || 
+    filters.dateRange?.from !== undefined // Use optional chaining
+
   const handleReset = () => {
-    setFilters({
+    const defaultFilters: FilterState = {
       status: "",
       search: "",
-      dateRange: {
-        from: undefined,
-        to: undefined,
-      },
-    })
+      dateRange: undefined,
+    }
+    setFilters(defaultFilters)
+    // Optionally notify parent immediately on reset
+    if (onFiltersApply) {
+       const apiOptions: FetchInvoiceHistoryOptions = {
+         status: undefined, 
+         search: undefined,
+         // dateFrom: undefined,
+         // dateTo: undefined,
+       }
+      onFiltersApply(apiOptions)
+    }
   }
 
   const handleApply = () => {
-    // Here you would typically trigger a data fetch with the filters
-    console.log("Applied filters:", filters)
-    // For demo purposes, we'll just collapse the filter panel
+    // Construct the options object for the API call
+    const apiOptions: FetchInvoiceHistoryOptions = {
+      status: filters.status === "" ? undefined : filters.status,
+      search: filters.search || undefined,
+      // Map dates to string format if API requires it (e.g., ISO string)
+      // dateFrom: filters.dateRange?.from?.toISOString(), // Use optional chaining
+      // dateTo: filters.dateRange?.to?.toISOString(), // Use optional chaining
+    }
+    console.log("Applying filters:", apiOptions)
+    if (onFiltersApply) {
+      onFiltersApply(apiOptions)
+    }
     setIsExpanded(false)
   }
 
@@ -56,12 +98,12 @@ export function InvoiceFilters() {
           {isExpanded ? "Hide Filters" : "Show Filters"}
         </Button>
 
-        {Object.values(filters).some((val) => val && (typeof val === "string" ? val.length > 0 : true)) && (
+        {isAnyFilterActive && (
           <Button
             variant="ghost"
             size="sm"
             onClick={handleReset}
-            className="flex items-center gap-2 text-muted-foreground"
+            className="flex items-center gap-2 text-muted-foreground hover:text-destructive"
           >
             <X className="h-4 w-4" />
             Reset Filters
@@ -83,18 +125,19 @@ export function InvoiceFilters() {
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="grid gap-2">
                     <Label htmlFor="status">Status</Label>
-                    <Select value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })}>
+                    <Select 
+                      value={filters.status}
+                      onValueChange={(value) => setFilters({ ...filters, status: value as InvoiceStatus | "" })}
+                    >
                       <SelectTrigger id="status">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="processed">Processed</SelectItem>
-                        <SelectItem value="waiting_validation">Waiting Validation</SelectItem>
-                        <SelectItem value="processing">Processing</SelectItem>
-                        <SelectItem value="failed">Failed</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                        <SelectItem value="duplicated">Duplicated</SelectItem>
+                        {availableStatuses.map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -103,18 +146,21 @@ export function InvoiceFilters() {
                     <Label htmlFor="search">Search</Label>
                     <Input
                       id="search"
-                      placeholder="Search by invoice number, vendor..."
+                      placeholder="Search by filename, etc..."
                       value={filters.search}
                       onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                     />
                   </div>
 
                   <div className="grid gap-2">
-                    <Label>Date Range</Label>
+                    <Label>Date Range</Label> { /* Note: Date range filtering not yet implemented in fetchInvoiceHistory */ }
                     <DatePickerWithRange
                       date={filters.dateRange}
-                      setDate={(range) =>
-                        setFilters({ ...filters, dateRange: { from: range?.from, to: range?.to ?? undefined } })
+                      setDate={(range) => 
+                        setFilters({ 
+                          ...filters, 
+                          dateRange: range // Pass the DateRange object directly
+                        })
                       }
                     />
                   </div>
