@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiRequest, ApiError } from '@/lib/api/client';
-import { useDebounce } from '@/hooks/use-debounce';
 import {
     addPreviewUpdateListener,
     removePreviewUpdateListener,
@@ -100,7 +99,7 @@ export function useInvoicePreviewEdit({
 
         try {
             console.log(`[Hook] Guardando cambios para factura ${invoiceId}...`);
-            await apiRequest(`/invoices/${invoiceId}/preview`, {
+            await apiRequest(`/api/invoices/${invoiceId}/preview`, {
                 method: 'PATCH',
                 body: JSON.stringify({
                     preview_data: previewData
