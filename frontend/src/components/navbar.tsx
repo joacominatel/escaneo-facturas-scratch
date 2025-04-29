@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { UploadModal } from "@/components/upload-modal"
 import { MobileMenu } from "@/components/mobile-menu"
 import { AnimatedTabs } from "@/components/animated-tabs"
+import { useWebSocket } from "@/contexts/websocket-context"
 
 // Define tab structure
 const navTabs = [
@@ -18,6 +19,33 @@ const navTabs = [
 interface NavbarProps {
   className?: string
 }
+
+// Componente para el indicador de estado WS
+const WebSocketStatusIndicator = () => {
+  const { isConnected, connectError } = useWebSocket();
+
+  let color = "bg-gray-400";
+  let title = "Live Desconectado";
+  
+  if (isConnected) {
+    color = "bg-green-500";
+    title = "Live Conectado";
+  } else if (connectError) {
+    color = "bg-red-500";
+    title = `Error Conexión Live`; // Podríamos añadir: ${connectError.message}
+  } 
+  // Podríamos añadir un estado "connecting" si el provider lo expusiera
+
+  return (
+    <div className="flex items-center space-x-1 sm:space-x-2" title={title}>
+      <span className={cn("h-2.5 w-2.5 rounded-full animate-pulse", color, { 'animate-none': !isConnected && !connectError })}></span>
+      <span className="text-xs text-muted-foreground hidden lg:inline">
+        {/* Mostramos un texto más corto */} 
+        {isConnected ? "Live" : (connectError ? "Error" : "Offline")}
+      </span>
+    </div>
+  );
+};
 
 export function Navbar({ className }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false)
@@ -65,8 +93,9 @@ export function Navbar({ className }: NavbarProps) {
             </div>
           </div>
 
-          {/* Right side: Upload, Theme */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Right side: WS Status, Upload, Theme */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            <WebSocketStatusIndicator />
             <UploadModal /> {/* Keep UploadModal button */}
             <ThemeToggle />
           </div>
