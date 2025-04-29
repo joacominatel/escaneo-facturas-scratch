@@ -1,6 +1,6 @@
-from flask import Flask
+from flask import Flask, request
 from app.core.config import Config
-from app.core.extensions import init_extensions, db
+from app.core.extensions import init_extensions, db, socketio
 from app.api.invoice_api import invoice_bp
 from app.api.invoice_confirm_api import invoice_confirm_bp
 from app.api.invoice_reject_api import invoice_reject_bp
@@ -17,6 +17,16 @@ def create_app():
 
     # Inicializar extensiones
     init_extensions(app)
+
+    @socketio.on('connect', namespace='/invoices')
+    def handle_invoice_connect():
+        print(f"Cliente conectado al namespace /invoices: {request.sid}")
+        # No retornar False ni lanzar excepciones aquí
+        pass
+
+    @socketio.on('disconnect', namespace='/invoices')
+    def handle_invoice_disconnect():
+        print(f"Cliente desconectado del namespace /invoices: {request.sid}")
 
     # Importar modelos aquí para que Flask-Migrate los detecte
     from app.models import Invoice
