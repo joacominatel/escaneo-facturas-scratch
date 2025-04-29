@@ -21,12 +21,24 @@ FROM node:22-slim
 
 WORKDIR /app
 
+# Crear un usuario y grupo no root
+# Usamos 'node' como usuario y grupo ya que la imagen base node lo suele incluir
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
 # Copy built assets from the builder stage
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.ts ./next.config.ts
+
+# Set ownership to the non-root user
+# Solo necesitamos ajustar permisos en la carpeta de la app
+RUN chown -R nextjs:nodejs /app
+
+# Cambiar al usuario no root
+USER nextjs
 
 # Expose the port the app runs on
 EXPOSE 3000
