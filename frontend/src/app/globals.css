@@ -120,3 +120,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Animación para resaltar filas actualizadas por WS */
+@keyframes row-highlight-keyframes {
+  0% { background-color: transparent; }
+  25% { background-color: hsl(var(--accent) / 0.3); } /* Flash de color */
+  100% { background-color: transparent; }
+}
+
+.animate-row-highlight {
+  animation: row-highlight-keyframes 1.5s ease-out forwards;
+}

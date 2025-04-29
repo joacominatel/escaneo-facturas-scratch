@@ -70,6 +70,8 @@ export default function RecentInvoices() {
     const [invoices, setInvoices] = useState<InvoiceListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
+    const [highlightedInvoiceId, setHighlightedInvoiceId] = useState<number | null>(null);
+    const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // --- Estado WebSocket desde el Contexto ---
     const { 
@@ -81,7 +83,10 @@ export default function RecentInvoices() {
 
     // Fetch inicial de datos
     const loadRecentInvoices = useCallback(async () => {
-        setIsLoading(true);
+        // No resetear loading si ya estamos mostrando facturas y es una recarga
+        if (invoices.length === 0) {
+            setIsLoading(true);
+        }
         setError(null);
         try {
             const fetchedInvoices = await fetchRecentInvoices(5);
@@ -93,16 +98,31 @@ export default function RecentInvoices() {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [invoices.length]);
 
     useEffect(() => {
         loadRecentInvoices();
     }, [loadRecentInvoices]);
 
+    // Función para manejar el highlight temporal
+    const triggerHighlight = (id: number) => {
+        if (highlightTimeoutRef.current) {
+            clearTimeout(highlightTimeoutRef.current);
+        }
+        setHighlightedInvoiceId(id);
+        highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedInvoiceId(null);
+        }, 1500); // Duración del highlight (ajustar con CSS)
+    };
+
     // --- Handler para Actualizaciones de Estado WS --- 
     // Usamos useCallback para memoizar la función del listener
     const handleStatusUpdate = useCallback((update: InvoiceStatusUpdateData) => {
         console.log('RecentInvoices WS Update:', update);
+        
+        // Aplicar highlight
+        triggerHighlight(update.id);
+        
         setInvoices(currentInvoices => {
             const index = currentInvoices.findIndex(inv => inv.id === update.id);
             if (index !== -1) {
@@ -113,12 +133,18 @@ export default function RecentInvoices() {
                 newInvoices[index] = { ...newInvoices[index], status: update.status as InvoiceStatus };
                 return newInvoices;
             } else {
-                 // Si no está en la lista reciente, podríamos considerar recargar
-                 // loadRecentInvoices(); // Opcional, puede ser mucho si hay muchos updates
+                 // Si la factura no está en la lista, es nueva (o salió del top 5)
+                 // Recargar la lista para ver si ahora aparece
+                 console.log(`Factura ${update.id} no encontrada en recientes, recargando...`);
+                 // Llamar fuera del setInvoices para evitar problemas de ciclo
+                 setTimeout(loadRecentInvoices, 100); // Pequeño delay opcional
+                 toast.info(`Nueva factura recibida: ${update.filename}`, {
+                    description: `Estado inicial: ${getStatusText(update.status as InvoiceStatus)}`
+                 });
             }
-            return currentInvoices;
+            return currentInvoices; // Devolver estado actual mientras se recarga
         });
-    }, []); // Sin dependencias externas
+    }, [loadRecentInvoices]);
 
     // --- Efecto para suscribirse/desuscribirse a los updates --- 
     useEffect(() => {
@@ -129,6 +155,9 @@ export default function RecentInvoices() {
         return () => {
             console.log("[RecentInvoices] Limpieza Efecto: Eliminando listener de status.");
             removeStatusUpdateListener(handleStatusUpdate);
+            if (highlightTimeoutRef.current) {
+                clearTimeout(highlightTimeoutRef.current); // Limpiar timeout al desmontar
+            }
         };
     }, [addStatusUpdateListener, removeStatusUpdateListener, handleStatusUpdate]); // Dependencias correctas
 
@@ -199,7 +228,13 @@ export default function RecentInvoices() {
                         <Table>
                             <TableBody>
                                 {invoices.map((invoice) => (
-                                    <TableRow key={invoice.id}>
+                                    <TableRow 
+                                        key={invoice.id}
+                                        // Aplicar clase de animación si el ID coincide
+                                        className={cn(
+                                            highlightedInvoiceId === invoice.id && "animate-row-highlight"
+                                        )}
+                                    >
                                         <TableCell
                                             className="font-medium truncate max-w-[150px] sm:max-w-[250px] py-2"
                                             title={invoice.filename}

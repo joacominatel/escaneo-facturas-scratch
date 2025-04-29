@@ -5,6 +5,7 @@ import { useReactTable, flexRender, getCoreRowModel, getSortedRowModel, getPagin
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { BulkActionBar } from "@/components/invoice-history/bulk-action-bar"
 import { InvoiceDataModal } from "@/components/invoice-data-modal"
+import { cn } from "@/lib/utils"
 
 // Importaciones de la nueva estructura
 import { useInvoiceTable } from './use-invoice-table'
@@ -24,9 +25,7 @@ export function InvoiceTable() {
         rowSelection,
         searchTerm,
         selectedStatuses,
-        // Ya no vienen del hook useInvoiceTable
-        // isLive, 
-        // isConnectingWs, 
+        updatedRowIds,
         hasActiveFilters,
         isDetailModalOpen,
         viewingInvoiceId,
@@ -39,8 +38,6 @@ export function InvoiceTable() {
         setRowSelection,
         setSearchTerm,
         setSelectedStatuses,
-        // Ya no viene del hook useInvoiceTable
-        // toggleLiveUpdates,
         fetchData,
         resetFilters,
         openDetailsModal,
@@ -135,7 +132,10 @@ export function InvoiceTable() {
                                 <TableRow
                                     key={row.id}
                                     data-state={row.getIsSelected() && "selected"}
-                                    className={row.getIsSelected() ? "bg-muted/50" : ""}
+                                    className={cn(
+                                        updatedRowIds.has(row.original.id) && "animate-row-highlight",
+                                        row.getIsSelected() && "bg-muted/50"
+                                    )}
                                 >
                                     {row.getVisibleCells().map((cell) => (
                                         <TableCell key={cell.id}>
