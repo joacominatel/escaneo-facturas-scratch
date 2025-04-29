@@ -3,13 +3,10 @@ import { Table } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
-import { InvoiceListItem } from "@/lib/api/types"; // O el tipo de dato que use tu tabla
 
 interface TablePaginationProps<TData> {
     table: Table<TData>;
     totalCount: number; // Pasar el total de filas desde el estado principal
-    // Opcional: callback para cuando se limpia la selección (si es relevante aquí)
-    // onClearSelection?: () => void;
 }
 
 export function TablePagination<TData>({ table, totalCount }: TablePaginationProps<TData>) {

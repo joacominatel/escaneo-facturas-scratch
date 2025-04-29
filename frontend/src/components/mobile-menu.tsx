@@ -9,20 +9,21 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UploadModal } from "@/components/upload-modal"
+import { Upload } from "lucide-react"
 
-interface MobileMenuProps {
-  className?: string
+interface Tab {
+  href: string;
+  label: string;
 }
 
-export function MobileMenu({ className }: MobileMenuProps) {
+interface MobileMenuProps {
+  className?: string;
+  tabs: Tab[];
+}
+
+export function MobileMenu({ className, tabs }: MobileMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
-
-  const routes = [
-    { href: "/", label: "Dashboard" },
-    { href: "/history", label: "History" },
-    { href: "/upload", label: "Upload" },
-  ]
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -32,35 +33,39 @@ export function MobileMenu({ className }: MobileMenuProps) {
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="flex flex-col">
-        <div className="flex items-center justify-between border-b pb-4">
-          <span className="font-semibold text-lg">Menu</span>
-          <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
-            <X className="h-5 w-5" />
-            <span className="sr-only">Close menu</span>
-          </Button>
-        </div>
+      <SheetContent side="left" className="flex flex-col pt-10">
         <nav className="flex flex-col gap-1 py-4">
-          {routes.map((route) => (
+          {tabs.map((tab) => (
             <Link
-              key={route.href}
-              href={route.href}
+              key={tab.href}
+              href={tab.href}
               onClick={() => setIsOpen(false)}
               className={cn(
-                "px-4 py-2 rounded-md text-sm font-medium transition-colors",
-                pathname === route.href
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
+                "px-4 py-2.5 rounded-md text-base font-medium transition-colors duration-150",
+                pathname === tab.href
+                  ? "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
               )}
             >
-              {route.label}
+              {tab.label}
             </Link>
           ))}
         </nav>
-        <div className="mt-auto space-y-4">
-          <UploadModal className="w-full" />
+        <div className="mt-auto border-t pt-4 space-y-4 px-4">
+          <UploadModal 
+            trigger={(
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-2" 
+                onClick={() => setIsOpen(false)}
+              >
+                <Upload className="h-4 w-4" />
+                <span>Subir Facturas</span>
+              </Button>
+            )}
+          />
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Theme</span>
+            <span className="text-sm font-medium">Tema</span>
             <ThemeToggle />
           </div>
         </div>

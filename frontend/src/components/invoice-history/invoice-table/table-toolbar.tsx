@@ -4,10 +4,11 @@ import { X } from "lucide-react";
 import { StatusFilter } from "./status-filter";
 import { LiveUpdateButton } from "@/components/invoice-history/live-update-button";
 import { InvoiceStatus } from "@/lib/api/types";
-import { SearchBar } from "@/components/search-bar";
+import { Input } from "@/components/ui/input";
 
 interface TableToolbarProps {
-    initialSearchTerm?: string;
+    searchTerm: string;
+    setSearchTerm: (value: string) => void;
     selectedStatuses: Set<InvoiceStatus>;
     setSelectedStatuses: React.Dispatch<React.SetStateAction<Set<InvoiceStatus>>>;
     hasActiveFilters: boolean;
@@ -18,7 +19,8 @@ interface TableToolbarProps {
 }
 
 export function TableToolbar({
-    initialSearchTerm,
+    searchTerm,
+    setSearchTerm,
     selectedStatuses,
     setSelectedStatuses,
     hasActiveFilters,
@@ -32,7 +34,12 @@ export function TableToolbar({
         <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
             {/* Filtros y búsqueda */}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                <SearchBar className="h-8 w-full sm:w-[200px] lg:w-[250px]" />
+                <Input
+                    placeholder="Buscar por nombre..."
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    className="h-8 w-[150px] lg:w-[200px]"
+                />
                 <StatusFilter
                     selectedStatuses={selectedStatuses}
                     setSelectedStatuses={setSelectedStatuses}
