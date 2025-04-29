@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { SortingState, PaginationState, RowSelectionState } from "@tanstack/react-table";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { useDebounce } from "@/hooks/use-debounce";
 import { fetchInvoiceHistory } from "@/lib/api/invoices";
 import {
     disconnect,
@@ -19,6 +18,7 @@ import {
 import { InvoiceListItem, InvoiceStatus, FetchInvoiceHistoryOptions } from "@/lib/api/types";
 import { toast } from 'sonner';
 import { LOCALSTORAGE_KEY_PAGE_SIZE, LOCALSTORAGE_KEY_STATUSES } from './constants';
+import { useSearchParams } from 'next/navigation';
 
 export function useInvoiceTable() {
     // --- Estados de Datos y Carga --- 
@@ -46,8 +46,6 @@ export function useInvoiceTable() {
         pageSize: storedPageSize,
     }));
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-    const [searchTerm, setSearchTerm] = useState("");
-    const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
     // --- Estados del WebSocket --- 
     const [isLive, setIsLive] = useState(false);
@@ -95,6 +93,9 @@ export function useInvoiceTable() {
     }, [pagination.pageSize, storedPageSize, setStoredPageSize]);
 
     // --- Lógica de Fetching --- 
+    const searchParams = useSearchParams();
+    const urlSearchTerm = searchParams.get('search') || "";
+
     const fetchData = useCallback(async (resetSelection = false) => {
         setIsLoading(true);
         setError(null);
@@ -105,7 +106,7 @@ export function useInvoiceTable() {
             const options: FetchInvoiceHistoryOptions = {
                 page: pagination.pageIndex + 1,
                 perPage: pagination.pageSize,
-                search: debouncedSearchTerm || undefined,
+                search: urlSearchTerm || undefined,
                 status: storedStatuses.length > 0 ? storedStatuses : undefined,
                 sortBy: sorting[0]?.id,
                 sortOrder: sorting[0]?.desc ? 'desc' : 'asc',
@@ -125,7 +126,7 @@ export function useInvoiceTable() {
     }, [
         pagination.pageIndex,
         pagination.pageSize,
-        debouncedSearchTerm,
+        urlSearchTerm,
         storedStatuses,
         sorting
     ]);
@@ -250,15 +251,14 @@ export function useInvoiceTable() {
     }, [setPagination]);
 
     const resetFilters = useCallback(() => {
-        setSearchTerm("");
         setSelectedStatuses(new Set());
         setPagination(p => ({ ...p, pageIndex: 0 }));
         setRowSelection({});
     }, [setSelectedStatuses, setPagination]);
 
     const hasActiveFilters = useMemo(() => {
-        return searchTerm !== "" || selectedStatuses.size > 0;
-    }, [searchTerm, selectedStatuses]);
+        return urlSearchTerm !== "" || selectedStatuses.size > 0;
+    }, [urlSearchTerm, selectedStatuses]);
 
     // --- Handlers para el Modal ---
     const handleViewDetails = useCallback((invoiceId: number) => {
@@ -282,7 +282,7 @@ export function useInvoiceTable() {
         sorting,
         pagination,
         rowSelection,
-        searchTerm,
+        urlSearchTerm,
         selectedStatuses,
         isLive,
         isConnectingWs,
@@ -294,7 +294,6 @@ export function useInvoiceTable() {
         setSorting,
         setPagination: handlePaginationChange,
         setRowSelection,
-        setSearchTerm,
         setSelectedStatuses,
         toggleLiveUpdates,
         fetchData,
