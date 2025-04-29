@@ -5,10 +5,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def create_celery_app():
+    # Usar las mismas variables de entorno que en config.py
+    broker_url = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/1')
+    backend_url = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/2')
+
     celery = Celery(
         __name__,
-        broker=os.getenv("REDIS_URL"),
-        backend=os.getenv("REDIS_URL")
+        broker=broker_url,
+        backend=backend_url
     )
     celery.conf.update(
         task_serializer='json',
