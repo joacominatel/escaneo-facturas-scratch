@@ -1,4 +1,26 @@
 services:
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: nextjs_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_BACKEND_URL=http://backend:8010
+    volumes:
+      # Mount the source code for development (optional, remove for production)
+      - ./frontend:/app
+      # Avoid mounting node_modules from host
+      - /app/node_modules
+      # Avoid mounting .next from host
+      - /app/.next
+    networks:
+      - backend_net
+    depends_on:
+      - backend
+
   backend:
     build:
       context: .
