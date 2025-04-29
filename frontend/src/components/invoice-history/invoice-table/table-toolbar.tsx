@@ -2,9 +2,10 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { StatusFilter } from "./status-filter";
-import { LiveUpdateButton } from "@/components/invoice-history/live-update-button";
 import { InvoiceStatus } from "@/lib/api/types";
 import { Input } from "@/components/ui/input";
+import { useWebSocket } from "@/contexts/websocket-context";
+import { cn } from "@/lib/utils";
 
 interface TableToolbarProps {
     searchTerm: string;
@@ -13,10 +14,31 @@ interface TableToolbarProps {
     setSelectedStatuses: React.Dispatch<React.SetStateAction<Set<InvoiceStatus>>>;
     hasActiveFilters: boolean;
     resetFilters: () => void;
-    isLive: boolean;
-    isConnectingWs: boolean;
-    toggleLiveUpdates: () => void;
 }
+
+const WebSocketStatusIndicator = () => {
+    const { isConnected, connectError } = useWebSocket();
+
+    let color = "bg-gray-400";
+    let title = "Live Desconectado";
+
+    if (isConnected) {
+        color = "bg-green-500";
+        title = "Live Conectado";
+    } else if (connectError) {
+        color = "bg-red-500";
+        title = `Error Conexión Live`;
+    }
+
+    return (
+        <div className="flex items-center space-x-1 sm:space-x-2" title={title}>
+            <span className={cn("h-2.5 w-2.5 rounded-full", color, isConnected && "animate-pulse")}></span>
+            <span className="text-xs text-muted-foreground hidden md:inline">
+                 {isConnected ? "Live" : (connectError ? "Error" : "Offline")}
+            </span>
+        </div>
+    );
+};
 
 export function TableToolbar({
     searchTerm,
@@ -25,9 +47,6 @@ export function TableToolbar({
     setSelectedStatuses,
     hasActiveFilters,
     resetFilters,
-    isLive,
-    isConnectingWs,
-    toggleLiveUpdates,
 }: TableToolbarProps) {
 
     return (
@@ -56,12 +75,8 @@ export function TableToolbar({
                 )}
             </div>
 
-            {/* Botón Live */}
-            <LiveUpdateButton
-                isConnected={isLive}
-                isConnecting={isConnectingWs}
-                onToggle={toggleLiveUpdates}
-            />
+            {/* Indicador de estado WebSocket global */}
+            <WebSocketStatusIndicator />
         </div>
     );
 } 

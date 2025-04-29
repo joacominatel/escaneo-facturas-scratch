@@ -4,18 +4,9 @@ import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useDebounce } from "@/hooks/use-debounce";
 import { fetchInvoiceHistory } from "@/lib/api/invoices";
 import {
-    disconnect,
-    isConnected,
-    addStatusUpdateListener,
-    removeStatusUpdateListener,
-    addConnectListener,
-    removeConnectListener,
-    addDisconnectListener,
-    removeDisconnectListener,
-    addConnectErrorListener,
-    removeConnectErrorListener,
-    type InvoiceStatusUpdateData
-} from "@/lib/ws/invoice-updates";
+    useWebSocket,
+    type InvoiceStatusUpdateData,
+} from "@/contexts/websocket-context";
 import { InvoiceListItem, InvoiceStatus, FetchInvoiceHistoryOptions } from "@/lib/api/types";
 import { toast } from 'sonner';
 import { LOCALSTORAGE_KEY_PAGE_SIZE, LOCALSTORAGE_KEY_STATUSES } from './constants';
@@ -49,23 +40,13 @@ export function useInvoiceTable() {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-    // --- Estados del WebSocket --- 
-    const [isLive, setIsLive] = useState(false);
-    const [isWsConnectedState, setIsWsConnectedState] = useState(isConnected());
-    const [isConnectingWs, setIsConnectingWs] = useState(false);
-
-    // Ref para listeners inicializada directamente
-    const wsListenersRef = useRef<{
-        onConnect: () => void;
-        onDisconnect: (reason: any, description?: any) => void;
-        onConnectError: (error: Error) => void;
-        onStatusUpdate: (data: InvoiceStatusUpdateData) => void;
-    }>({
-        onConnect: () => { /* Implementado abajo */ },
-        onDisconnect: () => { /* Implementado abajo */ },
-        onConnectError: () => { /* Implementado abajo */ },
-        onStatusUpdate: () => { /* Implementado abajo */ },
-    });
+    // --- Estados del WebSocket (desde Contexto) ---
+    const {
+        isConnected: isWsConnectedState,
+        connectError: wsConnectError,
+        addStatusUpdateListener,
+        removeStatusUpdateListener,
+    } = useWebSocket();
 
     // --- Estado para el Modal de Detalles ---
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -135,43 +116,17 @@ export function useInvoiceTable() {
         fetchData(true);
     }, [fetchData]);
 
-    // --- Definición de Handlers WS --- 
-    // Usamos useCallback para los handlers, pero la ref los hará estables
-    const handleWsConnect = useCallback(() => {
-        console.log("[useInvoiceTable] WS Connected!");
-        setIsConnectingWs(false);
-        setIsWsConnectedState(true); 
-    }, []);
-
-    const handleWsDisconnect = useCallback((reason: any, description?: any) => {
-        console.warn("[useInvoiceTable] WS Disconnected. Razón:", reason, description);
-        setIsConnectingWs(false);
-        setIsWsConnectedState(false); 
-        if (isLive && reason !== 'io client disconnect') {
-            toast.error("Conexión Live perdida", { description: `Razón: ${reason}` });
-        }
-    }, [isLive]); // Depende de isLive para mostrar el toast
-
-    const handleWsConnectError = useCallback((error: Error) => {
-        console.error("[useInvoiceTable] WS Connection Error:", error);
-        setIsConnectingWs(false);
-        setIsWsConnectedState(false); 
-        toast.error('Error conexión Live', { description: error.message });
-        setIsLive(false); // Desactivar toggle si falla
-    }, []);
-
+    // --- Handler para Actualizaciones de Estado WS ---
     const handleWsStatusUpdate = useCallback((update: InvoiceStatusUpdateData) => {
         console.log("[useInvoiceTable] WS Status Update:", update);
         setData(currentData => {
-            // Importante: Comprobar si la factura está visible con los filtros actuales
-            // Opcional: Si no está visible, podrías simplemente ignorar la actualización
-            //           o mostrar una notificación diferente.
             const invoiceIndex = currentData.findIndex(inv => inv.id === update.id);
             if (invoiceIndex === -1) {
                 console.log(`[useInvoiceTable] Factura ${update.id} no encontrada en la página actual.`);
-                // Podrías mostrar un toast indicando que una factura fuera de vista cambió.
-                // toast.info(`Factura ${update.filename} (fuera de vista) actualizada a ${update.status}`);
-                return currentData; // No modificar datos si no está visible
+                // Considerar si queremos recargar o notificar de alguna forma
+                // fetchData(); // Podría ser una opción si queremos verla si cumple filtros
+                // toast.info(`Factura ${update.filename} (fuera de vista) actualizada.`);
+                return currentData;
             }
 
             const updatedData = [...currentData];
@@ -179,69 +134,27 @@ export function useInvoiceTable() {
             console.log("[useInvoiceTable] Actualizando estado de la factura en la tabla.");
             return updatedData;
         });
-    }, []);
+    }, []); // Sin dependencias externas
 
-    // Actualizar la ref cuando los handlers cambien (debido a dependencias como isLive)
+    // --- Efecto para suscribirse/desuscribirse a los updates --- 
     useEffect(() => {
-        wsListenersRef.current = {
-            onConnect: handleWsConnect,
-            onDisconnect: handleWsDisconnect,
-            onConnectError: handleWsConnectError,
-            onStatusUpdate: handleWsStatusUpdate,
-        };
-    }, [handleWsConnect, handleWsDisconnect, handleWsConnectError, handleWsStatusUpdate]);
-
-    // --- Efecto para conectar/desconectar y añadir/remover listeners --- 
-    useEffect(() => {
-        if (isLive) {
-            console.log("[useInvoiceTable] useEffect[isLive]: Activando Live Updates...");
-            setIsConnectingWs(true);
-            // Añadir listeners (asegurándose de usar la versión más reciente de la ref)
-            const currentListeners = wsListenersRef.current;
-            addConnectListener(currentListeners.onConnect);
-            addDisconnectListener(currentListeners.onDisconnect);
-            addConnectErrorListener(currentListeners.onConnectError);
-            addStatusUpdateListener(currentListeners.onStatusUpdate);
-            // La llamada a add*Listener internamente llama a ensureConnected
-            
-             // Sincronizar estado inicial después de intentar añadir listeners
-             setIsWsConnectedState(isConnected());
-             if (isConnected()) {
-                 setIsConnectingWs(false); // Si ya estaba conectado, no estamos conectando
-             }
-
-        } else {
-             console.log("[useInvoiceTable] useEffect[isLive]: Desactivando Live Updates...");
-            // Remover listeners usando la versión de la ref
-            const currentListeners = wsListenersRef.current;
-            removeConnectListener(currentListeners.onConnect);
-            removeDisconnectListener(currentListeners.onDisconnect);
-            removeConnectErrorListener(currentListeners.onConnectError);
-            removeStatusUpdateListener(currentListeners.onStatusUpdate);
-            disconnect(); // Desconectar explícitamente
-            setIsConnectingWs(false);
-            setIsWsConnectedState(false);
-        }
-
-        // Función de limpieza del efecto
+        console.log("[useInvoiceTable] Efecto: Añadiendo listener de status.");
+        addStatusUpdateListener(handleWsStatusUpdate);
+        
+        // Limpieza
         return () => {
-            console.log("[useInvoiceTable] Limpieza useEffect[isLive]: Removiendo listeners...");
-            // Siempre remover listeners al desmontar o si isLive cambia a false
-            const currentListeners = wsListenersRef.current;
-            removeConnectListener(currentListeners.onConnect);
-            removeDisconnectListener(currentListeners.onDisconnect);
-            removeConnectErrorListener(currentListeners.onConnectError);
-            removeStatusUpdateListener(currentListeners.onStatusUpdate);
-             // Opcional: ¿Desconectar si el componente se desmonta incluso si isLive era true?
-             // if (isLive) disconnect(); 
+            console.log("[useInvoiceTable] Limpieza Efecto: Eliminando listener de status.");
+            removeStatusUpdateListener(handleWsStatusUpdate);
         };
-    }, [isLive]); // Ejecutar solo cuando isLive cambia
-
-    // --- Toggle para el Usuario --- 
-    const toggleLiveUpdates = useCallback(() => {
-        console.log("[useInvoiceTable] toggleLiveUpdates llamado.");
-        setIsLive(prev => !prev); // Simplemente cambia el estado deseado por el usuario
-    }, []);
+    }, [addStatusUpdateListener, removeStatusUpdateListener, handleWsStatusUpdate]);
+    
+    // --- Efecto para mostrar errores de conexión WS (del contexto) ---
+    useEffect(() => {
+        if (wsConnectError) {
+            toast.error('Error de Conexión Live (Historial)', { description: wsConnectError.message });
+            // Ya no necesitamos desactivar un toggle `isLive` porque no existe
+        }
+    }, [wsConnectError]);
 
     // --- Handlers para la Tabla --- 
     const handlePaginationChange = useCallback((updater: any) => {
@@ -268,8 +181,6 @@ export function useInvoiceTable() {
 
     const handleCloseDetailsModal = useCallback(() => {
         setIsDetailModalOpen(false);
-        // Podríamos resetear el ID aquí o esperar a que el modal lo haga al cerrarse
-        // setViewingInvoiceId(null);
     }, []);
 
     // --- Valor de Retorno del Hook --- 
@@ -284,9 +195,10 @@ export function useInvoiceTable() {
         rowSelection,
         searchTerm,
         selectedStatuses,
-        isLive,
-        isConnectingWs,
+        // Estados WS del contexto
         isWsConnected: isWsConnectedState,
+        wsConnectError, // Exponer el error si es necesario
+        // Indicadores
         hasActiveFilters,
         isDetailModalOpen,
         viewingInvoiceId,
@@ -296,7 +208,6 @@ export function useInvoiceTable() {
         setRowSelection,
         setSelectedStatuses,
         setSearchTerm,
-        toggleLiveUpdates,
         fetchData,
         resetFilters,
         openDetailsModal: handleViewDetails,

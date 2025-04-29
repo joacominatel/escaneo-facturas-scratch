@@ -24,31 +24,36 @@ export function InvoiceTable() {
         rowSelection,
         searchTerm,
         selectedStatuses,
-        isLive,
-        isConnectingWs,
+        // Ya no vienen del hook useInvoiceTable
+        // isLive, 
+        // isConnectingWs, 
         hasActiveFilters,
         isDetailModalOpen,
         viewingInvoiceId,
+        // Estado WS directo del contexto (si fuera necesario aquí)
+        isWsConnected,
+        wsConnectError,
         // Setters y Handlers
         setSorting,
         setPagination,
         setRowSelection,
         setSearchTerm,
         setSelectedStatuses,
-        toggleLiveUpdates,
+        // Ya no viene del hook useInvoiceTable
+        // toggleLiveUpdates,
         fetchData,
         resetFilters,
         openDetailsModal,
         setIsDetailModalOpen
     } = useInvoiceTable();
 
-    // Definir columnas (pasando los handlers necesarios)
+    // Definir columnas (sin cambios)
     const columns = useMemo(() => getInvoiceTableColumns(
         () => fetchData(true),
         openDetailsModal
     ), [fetchData, openDetailsModal]);
 
-    // Instancia de la tabla
+    // Instancia de la tabla (sin cambios)
     const table = useReactTable({
         data,
         columns,
@@ -71,32 +76,29 @@ export function InvoiceTable() {
         debugTable: process.env.NODE_ENV === 'development',
     });
 
-    // Obtener datos de filas seleccionadas para BulkActionBar
+    // Obtener datos de filas seleccionadas para BulkActionBar (sin cambios)
     const selectedRowsData = useMemo(() => {
         return table.getSelectedRowModel().rows.map(row => row.original);
     }, [rowSelection, table]);
 
     return (
         <div className="space-y-4 relative pb-20"> {/* Padding para BulkActionBar */}
-            {/* Barra de Herramientas */}
+            {/* Barra de Herramientas - eliminamos props que ya no existen */}
             <TableToolbar
                 searchTerm={searchTerm}
                 setSearchTerm={setSearchTerm}
                 selectedStatuses={selectedStatuses}
                 setSelectedStatuses={(updater) => {
-                    // Al cambiar estado, resetear paginación y selección
                     setSelectedStatuses(updater);
                     setPagination((p: PaginationState) => ({ ...p, pageIndex: 0 }));
                     setRowSelection({});
                 }}
                 hasActiveFilters={hasActiveFilters}
                 resetFilters={resetFilters}
-                isLive={isLive}
-                isConnectingWs={isConnectingWs}
-                toggleLiveUpdates={toggleLiveUpdates}
+                // Ya no pasamos isLive, isConnectingWs, toggleLiveUpdates
             />
 
-            {/* Tabla Principal */}
+            {/* Tabla Principal (sin cambios) */}
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
@@ -153,17 +155,17 @@ export function InvoiceTable() {
                 </Table>
             </div>
 
-            {/* Paginación */}
+            {/* Paginación (sin cambios) */}
             <TablePagination table={table} totalCount={totalCount} />
 
-            {/* Barra de Acciones en Masa */}
+            {/* Barra de Acciones en Masa (sin cambios) */}
             <BulkActionBar
                 selectedInvoices={selectedRowsData}
                 onActionComplete={() => fetchData(true)}
-                onClearSelection={() => setRowSelection({})} // Pasar el setter directamente
+                onClearSelection={() => setRowSelection({})} 
             />
 
-            {/* Modal de Detalles */}
+            {/* Modal de Detalles (sin cambios) */}
             <InvoiceDataModal
                 isOpen={isDetailModalOpen}
                 invoiceId={viewingInvoiceId}
