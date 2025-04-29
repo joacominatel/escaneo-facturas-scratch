@@ -1,47 +1,63 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, X } from 'lucide-react'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useDebounce } from "@/hooks/use-debounce"
 
 interface SearchBarProps {
   className?: string
-  onSearch?: (query: string) => void
+  navigateTo?: string
 }
 
-export function SearchBar({ className, onSearch }: SearchBarProps) {
-  const [query, setQuery] = useState("")
+export function SearchBar({ className, navigateTo = '/history' }: SearchBarProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialQuery = searchParams.get('search') || "";
+  const [query, setQuery] = useState(initialQuery)
   const [isFocused, setIsFocused] = useState(false)
+  const debouncedQuery = useDebounce(query, 500);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (onSearch) {
-      onSearch(query)
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (debouncedQuery) {
+      params.set('search', debouncedQuery)
+    } else {
+      params.delete('search')
     }
-  }
+    params.delete('page')
+
+    const currentSearch = searchParams.get('search') || "";
+    if (debouncedQuery !== currentSearch) {
+      router.push(`${navigateTo}?${params.toString()}`, { scroll: false })
+    }
+
+  }, [debouncedQuery, searchParams, router, navigateTo])
 
   const clearSearch = () => {
     setQuery("")
-    if (onSearch) {
-      onSearch("")
-    }
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
   }
 
   return (
     <form 
-      onSubmit={handleSearch} 
+      onSubmit={handleSubmit} 
       className={cn(
         "relative flex items-center transition-all duration-300",
-        isFocused ? "w-full md:w-80" : "w-full md:w-64",
+        "w-full md:w-72",
         className
       )}
     >
       <Search className="absolute left-2.5 h-4 w-4 text-muted-foreground" />
       <Input
         type="search"
-        placeholder="Search invoices..."
+        placeholder="Buscar facturas..."
         className="pl-9 pr-10 h-9 bg-background border-muted-foreground/20 focus-visible:ring-primary/20"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -57,7 +73,7 @@ export function SearchBar({ className, onSearch }: SearchBarProps) {
           onClick={clearSearch}
         >
           <X className="h-4 w-4" />
-          <span className="sr-only">Clear search</span>
+          <span className="sr-only">Limpiar búsqueda</span>
         </Button>
       )}
     </form>

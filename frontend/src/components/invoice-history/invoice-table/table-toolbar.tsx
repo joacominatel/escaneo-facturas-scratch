@@ -1,28 +1,24 @@
 import React from 'react';
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { StatusFilter } from "./status-filter";
-import { LiveUpdateButton } from "@/components/invoice-history/live-update-button"; // Ajustar si es necesario
+import { LiveUpdateButton } from "@/components/invoice-history/live-update-button";
 import { InvoiceStatus } from "@/lib/api/types";
+import { SearchBar } from "@/components/search-bar";
 
 interface TableToolbarProps {
-    searchTerm: string;
-    setSearchTerm: (value: string) => void;
+    initialSearchTerm?: string;
     selectedStatuses: Set<InvoiceStatus>;
     setSelectedStatuses: React.Dispatch<React.SetStateAction<Set<InvoiceStatus>>>;
-    hasActiveFilters: boolean; // Para saber si mostrar el botón Reset
+    hasActiveFilters: boolean;
     resetFilters: () => void;
-
-    // Props para LiveUpdateButton
     isLive: boolean;
     isConnectingWs: boolean;
     toggleLiveUpdates: () => void;
 }
 
 export function TableToolbar({
-    searchTerm,
-    setSearchTerm,
+    initialSearchTerm,
     selectedStatuses,
     setSelectedStatuses,
     hasActiveFilters,
@@ -33,29 +29,21 @@ export function TableToolbar({
 }: TableToolbarProps) {
 
     return (
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
             {/* Filtros y búsqueda */}
-            <div className="flex items-center gap-2 flex-wrap">
-                <Input
-                    placeholder="Buscar por nombre..."
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    className="h-8 w-[150px] lg:w-[200px]"
-                />
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <SearchBar className="h-8 w-full sm:w-[200px] lg:w-[250px]" />
                 <StatusFilter
                     selectedStatuses={selectedStatuses}
                     setSelectedStatuses={setSelectedStatuses}
-                    // Podríamos pasar aquí los callbacks para resetear paginación/selección
-                    // onChange={resetPaginationAndSelection}
-                    // onClear={resetPaginationAndSelection}
                 />
                 {hasActiveFilters && (
                     <Button
                         variant="ghost"
-                        onClick={resetFilters} // Llama a la función de reseteo general
+                        onClick={resetFilters}
                         className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-destructive"
                     >
-                        Reset
+                        Limpiar filtros
                         <X className="ml-2 h-4 w-4" />
                     </Button>
                 )}

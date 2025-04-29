@@ -22,7 +22,7 @@ export function InvoiceTable() {
         sorting,
         pagination,
         rowSelection,
-        searchTerm,
+        urlSearchTerm,
         selectedStatuses,
         isLive,
         isConnectingWs,
@@ -33,7 +33,6 @@ export function InvoiceTable() {
         setSorting,
         setPagination,
         setRowSelection,
-        setSearchTerm,
         setSelectedStatuses,
         toggleLiveUpdates,
         fetchData,
@@ -80,8 +79,7 @@ export function InvoiceTable() {
         <div className="space-y-4 relative pb-20"> {/* Padding para BulkActionBar */}
             {/* Barra de Herramientas */}
             <TableToolbar
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
+                initialSearchTerm={urlSearchTerm}
                 selectedStatuses={selectedStatuses}
                 setSelectedStatuses={(updater) => {
                     // Al cambiar estado, resetear paginación y selección
