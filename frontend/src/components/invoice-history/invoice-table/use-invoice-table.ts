@@ -57,21 +57,18 @@ export function useInvoiceTable() {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [viewingInvoiceId, setViewingInvoiceId] = useState<number | null>(null);
 
-    // --- Sincronización con localStorage --- 
+    // --- Sincronización de selectedStatuses a localStorage --- 
     useEffect(() => {
-        const currentStoredArray = storedStatuses || [];
-        const currentSetArray = Array.from(selectedStatuses);
-        if (JSON.stringify(currentSetArray.sort()) !== JSON.stringify([...currentStoredArray].sort())) {
-            setStoredStatuses(currentSetArray);
+        // Convertir Set a array ordenado para consistencia en localStorage
+        const statusesArray = Array.from(selectedStatuses).sort();
+        // Comparar con el valor actual en localStorage (si existe) para evitar escrituras innecesarias
+        // Nota: storedStatuses es el valor de la renderización anterior, pero es suficiente para esta comparación
+        const currentStoredArray = storedStatuses || []; 
+        if (JSON.stringify(statusesArray) !== JSON.stringify([...currentStoredArray].sort())) {
+            console.log('[useInvoiceTable] Syncing selectedStatuses to localStorage:', statusesArray);
+            setStoredStatuses(statusesArray);
         }
-    }, [selectedStatuses, setStoredStatuses, storedStatuses]);
-
-    useEffect(() => {
-        const currentStoredArray = storedStatuses || [];
-        if (JSON.stringify(Array.from(selectedStatuses).sort()) !== JSON.stringify([...currentStoredArray].sort())) {
-            setSelectedStatuses(new Set(currentStoredArray));
-        }
-    }, [storedStatuses, selectedStatuses]);
+    }, [selectedStatuses, setStoredStatuses, storedStatuses]); // Depender de selectedStatuses y los setters/valores relacionados con localStorage
 
     useEffect(() => {
         if (pagination.pageSize !== storedPageSize) {
@@ -91,7 +88,7 @@ export function useInvoiceTable() {
                 page: pagination.pageIndex + 1,
                 perPage: pagination.pageSize,
                 search: debouncedSearchTerm || undefined,
-                status: storedStatuses.length > 0 ? Array.from(storedStatuses) : undefined,
+                status: storedStatuses.length > 0 ? storedStatuses : undefined,
                 sortBy: sorting[0]?.id,
                 sortOrder: sorting[0]?.desc ? 'desc' : 'asc',
             };

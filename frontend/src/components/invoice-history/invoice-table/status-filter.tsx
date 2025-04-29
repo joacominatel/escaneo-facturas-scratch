@@ -50,15 +50,6 @@ export function StatusFilter({ selectedStatuses, setSelectedStatuses }: StatusFi
                                     <Checkbox
                                         className="mr-2"
                                         checked={selectedStatuses.has(status)}
-                                        onCheckedChange={(checked) => {
-                                            setSelectedStatuses(prev => {
-                                                const next = new Set(prev);
-                                                if (checked === true) next.add(status);
-                                                else next.delete(status);
-                                                return next;
-                                            });
-                                            // onChange?.(); // Llamar callback si existe
-                                        }}
                                         aria-labelledby={`filter-label-${status}`}
                                     />
                                     <span id={`filter-label-${status}`} className="capitalize">
@@ -67,25 +58,9 @@ export function StatusFilter({ selectedStatuses, setSelectedStatuses }: StatusFi
                                 </CommandItem>
                             ))}
                         </CommandGroup>
-                        {selectedStatuses.size > 0 && (
-                            <>
-                                <CommandList />
-                                <CommandGroup>
-                                    <CommandItem
-                                        onSelect={() => {
-                                            setSelectedStatuses(new Set());
-                                            // onClear?.(); // Llamar callback si existe
-                                        }}
-                                        className="justify-center text-center text-muted-foreground hover:text-destructive"
-                                    >
-                                        Limpiar filtros
-                                    </CommandItem>
-                                </CommandGroup>
-                            </>
-                        )}
                     </CommandList>
                 </Command>
             </PopoverContent>
         </Popover>
     );
-} 
+}
