@@ -140,9 +140,10 @@ function ensureConnected(): Promise<Socket> {
         // Crear instancia si no existe
         if (!socket) {
             const socketUrl = getApiBaseUrl(); // Volver a la URL base
-            console.log(`[WS] Creando nueva instancia de socket para ${socketUrl} (namespace ${SOCKET_NAMESPACE} manejado por cliente)...`);
-            // Conectar a la URL base
-            socket = socketIO(socketUrl, {
+            const namespaceUrl = socketUrl + SOCKET_NAMESPACE; // <-- Construir URL con namespace
+            console.log(`[WS] Creando nueva instancia de socket para ${namespaceUrl}...`);
+            // Conectar directamente a la URL con el namespace
+            socket = socketIO(namespaceUrl, { // <-- Usar namespaceUrl
                 path: '/socket.io', // Ruta estándar
                 transports: ['websocket'],
                 reconnectionAttempts: 5,
