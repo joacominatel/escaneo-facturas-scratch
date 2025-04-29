@@ -74,7 +74,7 @@ export function InvoiceTable() {
     // Obtener datos de filas seleccionadas para BulkActionBar (sin cambios)
     const selectedRowsData = useMemo(() => {
         return table.getSelectedRowModel().rows.map(row => row.original);
-    }, [table]);
+    }, [table, rowSelection]);
 
     return (
         <div className="space-y-4 relative pb-20"> {/* Padding para BulkActionBar */}
