@@ -1,14 +1,30 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { UploadModal } from "@/components/upload-modal"
-import { Button } from "@/components/ui/button"
-import { CheckCircle, FileText, Upload, Search, RefreshCw, AlertCircle } from 'lucide-react'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { UploadModal } from "@/components/upload-modal";
+import { Button } from "@/components/ui/button";
+import {
+  CheckCircle,
+  FileText,
+  Upload,
+  Search,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react";
+import { RedirectDashboardSection } from "@/components/upload/redirect-dashboard-section";
 
 export default function UploadPage() {
   return (
     <div className="space-y-8 mx-auto p-4 md:p-6 lg:p-8 w-full">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Upload Invoices</h1>
-        <p className="text-muted-foreground">Upload your invoices for automatic processing</p>
+        <h1 className="text-3xl font-bold">Subir Facturas</h1>
+        <p className="text-muted-foreground">
+          Subir tus facturas para procesamiento automático
+        </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -16,9 +32,11 @@ export default function UploadPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              How to Upload Invoices
+              Cómo subir facturas
             </CardTitle>
-            <CardDescription>Follow these steps to upload your invoices for processing</CardDescription>
+            <CardDescription>
+              Sigue estos pasos para subir tus facturas para procesamiento
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-4">
@@ -27,10 +45,11 @@ export default function UploadPage() {
                   1
                 </div>
                 <div className="space-y-1">
-                  <p className="font-medium">Prepare your files</p>
+                  <p className="font-medium">Prepara tus archivos</p>
                   <p className="text-sm text-muted-foreground">
-                    Ensure your invoices are in PDF format. You can upload multiple PDF files or a single ZIP file
-                    containing multiple PDFs.
+                    Asegúrate de que tus facturas estén en formato PDF. Puedes
+                    subir múltiples archivos PDF o un solo archivo ZIP que
+                    contenga múltiples PDFs.
                   </p>
                 </div>
               </div>
@@ -40,10 +59,11 @@ export default function UploadPage() {
                   2
                 </div>
                 <div className="space-y-1">
-                  <p className="font-medium">Upload your files</p>
+                  <p className="font-medium">Sube tus archivos</p>
                   <p className="text-sm text-muted-foreground">
-                    Click the upload button below or in the navigation bar. You can drag and drop files or browse to select
-                    them.
+                    Haz click en el botón de subir archivos o en la barra de
+                    navegación. Puedes arrastrar y soltar archivos o buscar para
+                    seleccionarlos.
                   </p>
                 </div>
               </div>
@@ -53,10 +73,11 @@ export default function UploadPage() {
                   3
                 </div>
                 <div className="space-y-1">
-                  <p className="font-medium">Wait for processing</p>
+                  <p className="font-medium">Espera a que se procesen</p>
                   <p className="text-sm text-muted-foreground">
-                    After uploading, your invoices will be automatically processed. This may take a few moments depending
-                    on the number and size of files.
+                    Después de subir tus archivos, tus facturas serán procesadas
+                    automáticamente. Esto puede tomar unos minutos dependiendo
+                    del número y tamaño de los archivos.
                   </p>
                 </div>
               </div>
@@ -66,9 +87,10 @@ export default function UploadPage() {
                   4
                 </div>
                 <div className="space-y-1">
-                  <p className="font-medium">Check the results</p>
+                  <p className="font-medium">Revisa los resultados</p>
                   <p className="text-sm text-muted-foreground">
-                    Once processing is complete, you can view the results in the dashboard or history section.
+                    Una vez completado el procesamiento, puedes ver los
+                    resultados en el dashboard o en la sección de historial.
                   </p>
                 </div>
               </div>
@@ -79,7 +101,7 @@ export default function UploadPage() {
                 trigger={
                   <Button size="lg" className="gap-2">
                     <Upload className="h-4 w-4" />
-                    Upload Invoices
+                    Subir Facturas
                   </Button>
                 }
               />
@@ -91,9 +113,11 @@ export default function UploadPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Search className="h-5 w-5" />
-              Checking Invoice Status
+              Verificar el estado de las facturas
             </CardTitle>
-            <CardDescription>How to monitor and manage your uploaded invoices</CardDescription>
+            <CardDescription>
+              Cómo monitorizar y gestionar tus facturas subidas
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-4">
@@ -102,9 +126,10 @@ export default function UploadPage() {
                   <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="font-medium">Processed</p>
+                  <p className="font-medium">Procesadas</p>
                   <p className="text-sm text-muted-foreground">
-                    Invoices that have been successfully processed and are ready for review.
+                    Facturas que han sido procesadas y están listas para
+                    revisión.
                   </p>
                 </div>
               </div>
@@ -114,9 +139,10 @@ export default function UploadPage() {
                   <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="font-medium">Waiting Validation</p>
+                  <p className="font-medium">Esperando Validación</p>
                   <p className="text-sm text-muted-foreground">
-                    Invoices that have been processed but require manual validation before being finalized.
+                    Facturas que han sido procesadas pero requieren validación
+                    manual antes de ser finalizadas.
                   </p>
                 </div>
               </div>
@@ -126,9 +152,9 @@ export default function UploadPage() {
                   <RefreshCw className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <p className="font-medium">Processing</p>
+                  <p className="font-medium">Procesando</p>
                   <p className="text-sm text-muted-foreground">
-                    Invoices that are currently being processed by the system.
+                    Facturas que están siendo procesadas por el sistema.
                   </p>
                 </div>
               </div>
@@ -138,37 +164,26 @@ export default function UploadPage() {
                   <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                  <p className="font-medium">Failed</p>
+                  <p className="font-medium">Falladas</p>
                   <p className="text-sm text-muted-foreground">
-                    Invoices that could not be processed due to errors. These can be retried.
+                    Facturas que no pudieron ser procesadas debido a errores.
+                    Estas pueden ser reintentadas.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-md bg-muted p-4">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                <p className="font-medium">View all invoices in the Dashboard</p>
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                You can view all your invoices, their status, and take actions on them from the main dashboard or history
-                page.
-              </p>
-              <div className="mt-4">
-                <Button variant="outline" className="w-full">
-                  Go to Dashboard
-                </Button>
-              </div>
-            </div>
+            <RedirectDashboardSection />
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Supported File Formats</CardTitle>
-          <CardDescription>Information about file types and limitations</CardDescription>
+          <CardTitle>Formatos de archivo soportados</CardTitle>
+          <CardDescription>
+            Información sobre tipos de archivo y limitaciones
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-6 md:grid-cols-2">
@@ -178,10 +193,13 @@ export default function UploadPage() {
                 <h3 className="font-medium">PDF Files</h3>
               </div>
               <ul className="list-disc pl-6 text-sm text-muted-foreground space-y-1">
-                <li>You can upload multiple PDF files at once</li>
-                <li>Each PDF should contain a single invoice</li>
-                <li>Maximum file size: 10MB per PDF</li>
-                <li>Text in the PDF should be selectable (not scanned images)</li>
+                <li>Puedes subir múltiples archivos PDF a la vez</li>
+                <li>Cada PDF debe contener una sola factura</li>
+                <li>Tamaño máximo de archivo: 10MB por PDF</li>
+                <li>
+                  El texto en el PDF debe ser seleccionable (no imágenes
+                  escaneadas)
+                </li>
               </ul>
             </div>
 
@@ -191,15 +209,17 @@ export default function UploadPage() {
                 <h3 className="font-medium">ZIP Files</h3>
               </div>
               <ul className="list-disc pl-6 text-sm text-muted-foreground space-y-1">
-                <li>You can upload a single ZIP file containing multiple PDFs</li>
-                <li>Maximum file size: 50MB per ZIP</li>
-                <li>All files within the ZIP must be PDFs</li>
-                <li>Nested folders within the ZIP are supported</li>
+                <li>
+                  Puedes subir un solo archivo ZIP que contenga múltiples PDFs
+                </li>
+                <li>Tamaño máximo de archivo: 50MB por ZIP</li>
+                <li>Todos los archivos dentro del ZIP deben ser PDFs</li>
+                <li>Los archivos anidados dentro del ZIP son soportados</li>
               </ul>
             </div>
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

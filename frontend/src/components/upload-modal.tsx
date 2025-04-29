@@ -108,7 +108,7 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
 
   const handleUpload = async () => {
     if (files.length === 0) {
-      setError("Please select at least one file to upload")
+      setError("Por favor, selecciona al menos un archivo para subir")
       return
     }
     
@@ -149,20 +149,20 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
         {trigger || (
           <Button className={cn("gap-2", className)}>
             <Upload className="h-4 w-4" />
-            Upload Invoices
+            Subir Facturas
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload Invoices</DialogTitle>
+          <DialogTitle>Subir Facturas</DialogTitle>
         </DialogHeader>
         
         {uploadResponse ? (
           <div className="py-4 space-y-4">
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle2 className="h-5 w-5" />
-              <p className="font-medium">Upload successful!</p>
+              <p className="font-medium">Subida exitosa!</p>
             </div>
             <div className="space-y-2">
               {uploadResponse.map((item, index) => (
@@ -196,8 +196,8 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
               />
               <div className="flex flex-col items-center gap-2">
                 <Upload className="h-8 w-8 text-muted-foreground" />
-                <p className="text-sm font-medium">Drag and drop files here or click to browse</p>
-                <p className="text-xs text-muted-foreground">Supports PDF and ZIP files (only one ZIP allowed)</p>
+                <p className="text-sm font-medium">Arrastra y suelta archivos aquí o haz click para buscar</p>
+                <p className="text-xs text-muted-foreground">Soporta archivos PDF y ZIP (solo uno ZIP permitido)</p>
               </div>
             </div>
 
@@ -211,7 +211,7 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
             {isUploading && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span>Uploading...</span>
+                  <span>Subiendo...</span>
                   <span>{uploadProgress}%</span>
                 </div>
                 <Progress value={uploadProgress} className="h-2" />
@@ -221,7 +221,7 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
             {files.length > 0 && (
               <div className="border rounded-md">
                 <div className="p-2 bg-muted/50 border-b">
-                  <h3 className="text-sm font-medium">Selected Files ({files.length})</h3>
+                  <h3 className="text-sm font-medium">Archivos seleccionados ({files.length})</h3>
                 </div>
                 <ul className="max-h-[200px] overflow-auto p-2">
                   <AnimatePresence>
@@ -264,7 +264,7 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
                 Cancel
               </Button>
               <Button onClick={handleUpload} disabled={files.length === 0 || isUploading}>
-                {isUploading ? "Uploading..." : "Upload"}
+                {isUploading ? "Subiendo..." : "Subir"}
               </Button>
             </div>
           </div>

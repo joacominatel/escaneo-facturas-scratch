@@ -6,8 +6,8 @@ export default function Loading() {
   return (
     <DashboardShell>
       <DashboardHeader
-        heading="Invoice History"
-        text="View and manage all your invoice processing activities"
+        heading="Historial de Facturas"
+        text="Ver y administrar todas tus actividades de procesamiento de facturas"
       />
       <DashboardSkeleton />
     </DashboardShell>

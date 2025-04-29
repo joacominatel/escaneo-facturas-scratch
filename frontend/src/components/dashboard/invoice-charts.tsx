@@ -21,12 +21,12 @@ interface StatusPieDataPoint {
 }
 
 const statusConfig: Record<InvoiceStatus, { label: string; color: string }> = {
-  processed: { label: "Processed", color: "hsl(142, 71%, 44%)" },
-  waiting_validation: { label: "Waiting Validation", color: "hsl(199, 89%, 46%)" },
-  processing: { label: "Processing", color: "hsl(262, 83%, 56%)" },
-  failed: { label: "Failed", color: "hsl(0, 74%, 52%)" },
-  rejected: { label: "Rejected", color: "hsl(31, 90%, 55%)" },
-  duplicated: { label: "Duplicated", color: "hsl(45, 93%, 48%)" },
+  processed: { label: "Procesadas", color: "hsl(142, 71%, 44%)" },
+  waiting_validation: { label: "Esperando Validación", color: "hsl(199, 89%, 46%)" },
+  processing: { label: "Procesando", color: "hsl(262, 83%, 56%)" },
+  failed: { label: "Falladas", color: "hsl(0, 74%, 52%)" },
+  rejected: { label: "Rechazadas", color: "hsl(31, 90%, 55%)" },
+  duplicated: { label: "Duplicadas", color: "hsl(45, 93%, 48%)" },
 }
 
 export function InvoiceCharts({ className }: InvoiceChartsProps) {
@@ -56,7 +56,7 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
 
       } catch (err) {
         console.error("Failed to fetch chart data:", err)
-        toast("Failed to load chart data. Displaying empty chart.")
+        toast("Error al cargar los datos del gráfico. Mostrando gráfico vacío.")
         setChartData([])
       } finally {
         setIsLoading(false)
@@ -75,8 +75,8 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
     >
       <Card className="h-full flex flex-col">
         <CardHeader>
-          <CardTitle>Invoice Status Distribution</CardTitle>
-          <CardDescription>Current breakdown of invoices by status</CardDescription>
+          <CardTitle>Distribución de Estados de Facturas</CardTitle>
+          <CardDescription>Desglose actual de facturas por estado</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 pb-0">
           {isLoading ? (
@@ -85,7 +85,7 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
             </div>
           ) : chartData.length === 0 ? (
             <div className="flex h-full items-center justify-center text-muted-foreground">
-              No status data available.
+              No hay datos de estado disponibles.
             </div>
            ) : (
             <ChartContainer config={statusConfig} className="h-full w-full">
