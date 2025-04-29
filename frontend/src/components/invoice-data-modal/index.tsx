@@ -213,7 +213,7 @@ export function InvoiceDataModal({ invoiceId, isOpen, onOpenChange, trigger, onE
                     </div>
 
                     {!isEditing && canEdit && details && !isLoading && !detailsError && (
-                        <DialogFooter className="px-6 py-3 border-t sticky bottom-0 bg-background z-10">
+                        <DialogFooter className="px-6 py-3 border-t bottom-0 bg-background z-10">
                             <Button variant="outline" onClick={handleEditClick}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Editar Previsualización
