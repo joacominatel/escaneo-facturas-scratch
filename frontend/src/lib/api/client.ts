@@ -72,7 +72,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
       try {
         // Try to parse error details from the response body
         errorData = await response.json()
-      } catch (parseError) {
+      } catch {
         // If parsing fails, use the status text as the error message
         errorData = { error: response.statusText }
       }

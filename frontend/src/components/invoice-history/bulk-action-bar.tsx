@@ -116,7 +116,6 @@ export function BulkActionBar({ selectedInvoices, onActionComplete, onClearSelec
 
     onActionComplete(); // Refresca la tabla (y debería limpiar selección según la lógica en la tabla)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedInvoices, confirmInvoice, retryInvoice, onActionComplete])
 
 

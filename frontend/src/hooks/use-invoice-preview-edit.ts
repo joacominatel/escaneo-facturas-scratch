@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiRequest, ApiError } from '@/lib/api/client';
 import {
@@ -28,7 +29,6 @@ interface UseInvoicePreviewEditReturn {
 export function useInvoicePreviewEdit({
     invoiceId,
     initialPreviewData,
-    debounceTimeout = 300 // Default debounce de 300ms
 }: UseInvoicePreviewEditProps): UseInvoicePreviewEditReturn {
     const [previewData, setPreviewData] = useState<Record<string, any> | null>(initialPreviewData);
     const [lastSavedData, setLastSavedData] = useState<Record<string, any> | null>(initialPreviewData);

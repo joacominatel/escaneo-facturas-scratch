@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { SortingState, PaginationState, RowSelectionState } from "@tanstack/react-table";
 import { useLocalStorage } from "@/hooks/use-local-storage";
@@ -70,7 +71,7 @@ export function useInvoiceTable() {
         if (JSON.stringify(Array.from(selectedStatuses).sort()) !== JSON.stringify([...currentStoredArray].sort())) {
             setSelectedStatuses(new Set(currentStoredArray));
         }
-    }, [storedStatuses]);
+    }, [storedStatuses, selectedStatuses]);
 
     useEffect(() => {
         if (pagination.pageSize !== storedPageSize) {
@@ -174,12 +175,15 @@ export function useInvoiceTable() {
         console.log("[useInvoiceTable] Efecto: Añadiendo listener de status.");
         addStatusUpdateListener(handleWsStatusUpdate);
         
+        // Capturar la referencia actual para usarla en la limpieza
+        const currentTimeoutMap = highlightTimeoutRef.current;
+        
         return () => {
             console.log("[useInvoiceTable] Limpieza Efecto: Eliminando listener de status.");
             removeStatusUpdateListener(handleWsStatusUpdate);
-            // Limpiar todos los timeouts pendientes al desmontar
-            highlightTimeoutRef.current.forEach(timeoutId => clearTimeout(timeoutId));
-            highlightTimeoutRef.current.clear();
+            // Limpiar todos los timeouts pendientes al desmontar usando la referencia capturada
+            currentTimeoutMap.forEach(timeoutId => clearTimeout(timeoutId));
+            currentTimeoutMap.clear();
         };
     }, [addStatusUpdateListener, removeStatusUpdateListener, handleWsStatusUpdate]);
     
@@ -211,10 +215,6 @@ export function useInvoiceTable() {
     const handleViewDetails = useCallback((invoiceId: number) => {
         setViewingInvoiceId(invoiceId);
         setIsDetailModalOpen(true);
-    }, []);
-
-    const handleCloseDetailsModal = useCallback(() => {
-        setIsDetailModalOpen(false);
     }, []);
 
     // --- Valor de Retorno del Hook --- 

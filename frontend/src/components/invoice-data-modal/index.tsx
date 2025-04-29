@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Edit, Check } from "lucide-react";
+import { AlertTriangle, Edit } from "lucide-react";
 import { useInvoiceDetails } from "@/hooks/use-invoice-details";
 import { useInvoicePreviewEdit } from '@/hooks/use-invoice-preview-edit';
 import { InvoiceDetailsContent } from "./invoice-details-content";
@@ -127,7 +127,6 @@ export function InvoiceDataModal({ invoiceId, isOpen, onOpenChange, trigger, onE
     }, [setEditedPreviewData]);
 
     const isLoading = isLoadingDetails;
-    const error = detailsError || editError;
 
     return (
         <>

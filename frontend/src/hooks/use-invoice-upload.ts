@@ -81,7 +81,7 @@ export function useInvoiceUpload() {
             try {
               const data = JSON.parse(xhr.responseText)
               resolve(data)
-            } catch (error) {
+            } catch {
               reject(new Error("Failed to parse response"))
             }
           } else {

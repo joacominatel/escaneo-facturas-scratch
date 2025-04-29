@@ -84,6 +84,7 @@ export const getInvoiceTableColumns = (
                 const date = new Date(row.getValue("created_at"));
                 return <div suppressHydrationWarning>{date.toLocaleString()}</div>;
             } catch (e) {
+                console.error("Error al formatear la fecha:", e);
                 return <div>Fecha inválida</div>;
             }
         },

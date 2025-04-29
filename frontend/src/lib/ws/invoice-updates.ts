@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
 import type { Socket } from "socket.io-client";
 // Eliminamos la importación de socketIO, getApiBaseUrl, y la lógica de conexión global
 

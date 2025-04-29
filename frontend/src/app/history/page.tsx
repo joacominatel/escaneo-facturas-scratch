@@ -18,7 +18,6 @@ export default function HistoryPage() {
           <CardTitle>Historial de Facturas</CardTitle>
           <CardDescription>
             Gestiona, filtra y visualiza todas las facturas procesadas.
-            Activa "Live" para ver actualizaciones en tiempo real.
           </CardDescription>
         </CardHeader>
         <CardContent>

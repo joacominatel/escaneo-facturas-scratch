@@ -1,6 +1,5 @@
 import React from 'react';
 import type { InvoiceDetail } from "@/lib/api/types";
-import { InvoiceItemsTable } from './invoice-items-table';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Usar Card para agrupar
 import { Separator } from "@/components/ui/separator";
 
@@ -36,7 +35,7 @@ export function InvoiceDetailsContent({ details }: InvoiceDetailsContentProps) {
     }
 
     // Extraer datos para facilitar lectura
-    const { invoice_number, date, bill_to, amount_total, currency = 'ARS', payment_terms, items } = dataToShow;
+    const { invoice_number, date, bill_to, amount_total, currency = 'ARS', payment_terms } = dataToShow;
 
     return (
         <div className="space-y-4 text-sm">

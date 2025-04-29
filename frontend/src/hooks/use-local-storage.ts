@@ -63,7 +63,6 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, initialValue]); // No incluir readValue aquí
 
   // useEffect para asegurar que el estado se inicializa correctamente en el cliente

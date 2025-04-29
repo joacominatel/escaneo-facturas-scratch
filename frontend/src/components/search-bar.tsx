@@ -17,10 +17,8 @@ export function SearchBar({
   className, 
   onSearch, 
   initialQuery = "", 
-  placeholder = "Buscar..."
 }: SearchBarProps) {
   const [query, setQuery] = useState(initialQuery)
-  const [isFocused, setIsFocused] = useState(false)
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,8 +50,6 @@ export function SearchBar({
         className="pl-9 pr-10 h-9 bg-background border-muted-foreground/20 focus-visible:ring-primary/20"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
       />
       {query && (
         <Button

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 import type React from "react";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "../theme-provider";
