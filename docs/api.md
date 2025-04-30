@@ -1,18 +1,32 @@
 # API Documentation - Invoice Scanner App
 
-This API allows managing the upload, processing, validation, and retrieval of scanned invoices using OCR and potentially AI for data extraction.
+This API allows managing the upload, processing, validation, and retrieval of scanned invoices using OCR and potentially AI for data extraction. It features asynchronous processing via Celery and real-time updates through WebSockets.
 
 ---
 
 ## Base URL
 
-All API endpoints are relative to the application's base URL. For example, if your application is running at `http://localhost:5000`, the endpoints would be accessed like `http://localhost:5000/api/invoices/...`.
+All API endpoints are relative to the application's base URL. For example, if your application is running at `http://localhost:8010`, the endpoints would be accessed like `http://localhost:8010/api/invoices/...`.
 
 ---
 
 ## Authentication
 
-_(Note: Authentication details are not specified in the provided code snippets. Add relevant information here if authentication/authorization is implemented, e.g., API Keys, JWT Tokens, etc.)_
+_(Note: Authentication details are not specified in the provided code snippets. This section should be updated if authentication/authorization mechanisms like API Keys or JWT Tokens are implemented.)_
+
+---
+
+## Invoice Status Lifecycle
+
+Invoices progress through several statuses during their lifecycle:
+
+1.  **`uploading` (Implicit):** File is received by the server.
+2.  **`processing`:** File accepted, saved, initial `Invoice` record created. The `process_invoice_task` (Celery) is queued to perform OCR and AI extraction.
+3.  **`waiting_validation`:** The background task (`process_invoice_task`) completed successfully. `preview_data` contains the extracted information, awaiting user review and action (confirm, reject, or update preview).
+4.  **`processed`:** The invoice data (`preview_data`) has been confirmed via the `POST /confirm` endpoint. The data is copied to `final_data`, and processing for this invoice is considered complete.
+5.  **`failed`:** The background task (`process_invoice_task`) encountered an error. Check `InvoiceLog` for details. The invoice can be retried via the `POST /retry` endpoint.
+6.  **`rejected`:** The invoice was manually rejected via the `POST /reject` endpoint (typically from `waiting_validation`, `processing`, or `failed` states). It can be retried via the `POST /retry` endpoint.
+7.  **`duplicated`:** The uploaded file was identified as a duplicate based on its filename during the initial upload (`POST /ocr`). No processing task is queued.
 
 ---
 
@@ -25,44 +39,44 @@ _(Note: Authentication details are not specified in the provided code snippets. 
 `POST /api/invoices/ocr`
 
 **Description:**
-Uploads one or more invoice files (PDF, JPEG, PNG) for asynchronous processing. The system saves the file, creates an initial `Invoice` record with status `processing`, and queues a background task (Celery - specifically `process_invoice_task`) to perform OCR and AI-based data extraction.
+Uploads one or more invoice files (PDF, JPEG, PNG) for asynchronous processing. The system saves the file(s), attempts to create initial `Invoice` records, checks for duplicates by filename, and queues a background task (`process_invoice_task`) for valid, non-duplicate files. Records for valid uploads are initially set to `processing`.
 
-**Important:** This endpoint returns immediately after accepting the files (202 Accepted). The actual processing happens in the background. You should monitor the invoice status via the `GET /api/invoices/<id>` endpoint or listen for WebSocket events.
+**Important:** This endpoint returns quickly (202 Accepted) after queueing tasks. Actual processing happens asynchronously. Monitor invoice status via `GET /api/invoices/<id>` or WebSocket events.
 
 **Request:**
 - **Content-Type:** `multipart/form-data`
 - **Body:**
-    - `file`: One or more files attached.
+    - `file`: One or more files. (Key name must be `file`)
 
 **Allowed File Types:** `application/pdf`, `image/jpeg`, `image/png`.
 
 **Response (Success - 202 Accepted):**
-Returns a list of results, one for each uploaded file, indicating whether it was accepted for processing, duplicated, or encountered an error during upload.
+Returns a list indicating the outcome for each file.
 
 ```json
 [
   {
-    "invoice_id": 1,
+    "invoice_id": 1, // ID assigned if accepted
     "filename": "factura_nueva.pdf",
-    "status": "processing",
+    "status": "processing", // Initial status for accepted files
     "message": "Invoice is being processed automatically"
   },
   {
-    "invoice_id": null,
+    "invoice_id": null, // No ID assigned for duplicates
     "filename": "factura_repetida.pdf",
     "status": "duplicated",
     "message": "Invoice was already processed previously (detected by name)."
   },
   {
     "filename": "documento_invalido.txt",
-    "status": "error",
+    "status": "error", // File-specific error
     "message": "File type not allowed: text/plain. Allowed: application/pdf, image/jpeg, image/png"
   }
 ]
 ```
 
 **Response (Error - 400 Bad Request):**
-If no files are provided in the request.
+If no files are provided.
 ```json
 {
   "error": "No files found"
@@ -70,13 +84,11 @@ If no files are provided in the request.
 ```
 
 **Response (Error - 500 Internal Server Error):**
-If there's an error saving records to the database during the initial processing stage.
+If a database error occurs during initial record creation for one or more files.
 ```json
 {
   "error": "An error occurred while processing some files in the database.",
-  "details": [
-    // List of results, some might show database errors
-  ]
+  "details": [ /* List potentially showing specific DB errors per file */ ]
 }
 ```
 
@@ -87,25 +99,25 @@ If there's an error saving records to the database during the initial processing
 `GET /api/invoices/`
 
 **Description:**
-Retrieves a paginated list of invoices. Allows filtering by status, searching by filename, and sorting by various columns.
+Retrieves a paginated list of invoices. Supports filtering by status, searching by filename, and sorting.
 
 **Query Parameters:**
-- `page` (integer, optional, default: 1): The page number to retrieve.
-- `per_page` (integer, optional, default: 10, max: 100): Number of invoices per page.
-- `status` (string, optional, multiple allowed): Filter by one or more invoice statuses (e.g., `status=processing&status=failed`). Valid statuses might include `processing`, `waiting_validation`, `processed`, `failed`, `rejected`, `duplicated`.
-- `search` (string, optional): Search term to filter invoices by filename (case-insensitive).
-- `sort_by` (string, optional, default: `created_at`): Column to sort by. Allowed columns are fields in the `Invoice` model (e.g., `id`, `filename`, `status`, `created_at`).
+- `page` (integer, optional, default: 1): Page number.
+- `per_page` (integer, optional, default: 10, max: 100): Invoices per page.
+- `status` (string, optional, multiple allowed): Filter by status(es) (e.g., `status=processing&status=failed`). See "Invoice Status Lifecycle" for valid statuses.
+- `search` (string, optional): Case-insensitive search term for filename.
+- `sort_by` (string, optional, default: `created_at`): Column to sort by (e.g., `id`, `filename`, `status`, `created_at`).
 - `sort_order` (string, optional, default: `desc`): Sort order (`asc` or `desc`).
 
 **Response (Success - 200 OK):**
-Returns a paginated list of invoices matching the criteria.
+Paginated list of invoices.
 
 ```json
 {
   "page": 1,
   "per_page": 10,
-  "total": 53,
-  "pages": 6,
+  "total": 53, // Total invoices matching filters
+  "pages": 6, // Total pages
   "invoices": [
     {
       "id": 15,
@@ -125,7 +137,7 @@ Returns a paginated list of invoices matching the criteria.
 ```
 
 **Response (Error - 400 Bad Request):**
-If `page` or `per_page` are not valid integers.
+If `page` or `per_page` are invalid.
 ```json
 {
   "error": "'page' and 'per_page' parameters must be integers."
@@ -133,7 +145,7 @@ If `page` or `per_page` are not valid integers.
 ```
 
 **Response (Error - 500 Internal Server Error):**
-If there's an error querying the database.
+If a database query fails.
 ```json
 {
   "error": "Error querying the database"
@@ -147,44 +159,37 @@ If there's an error querying the database.
 `GET /api/invoices/<int:invoice_id>`
 
 **Description:**
-Retrieves detailed information for a specific invoice, including its current `status` reflecting the background processing stage, and extracted data (`preview_data` or `final_data`).
-
-**Possible Statuses:**
-- `processing`: The background task has started or is actively working on OCR/AI extraction.
-- `waiting_validation`: The background task completed successfully. `preview_data` contains the extracted information, pending user confirmation via the `confirm` endpoint.
-- `processed`: The invoice data has been confirmed (via the `confirm` endpoint) and moved to `final_data`. Processing is complete.
-- `failed`: The background task encountered an error during processing. Check `InvoiceLog` (if available via another endpoint or logs) for details. Can be retried using the `retry` endpoint.
-- `rejected`: The invoice was manually rejected via the `reject` endpoint. Can be retried using the `retry` endpoint.
-- `duplicated`: The uploaded file was detected as a duplicate based on its filename during the initial upload.
+Retrieves detailed information for a single invoice, including its current status, extracted data (`preview_data` or `final_data`), and potentially raw AI response (`agent_response`).
 
 **Path Parameters:**
-- `invoice_id` (integer, required): The ID of the invoice to retrieve.
+- `invoice_id` (integer, required): The ID of the invoice.
 
 **Response (Success - 200 OK):**
 ```json
 {
   "invoice_id": 15,
+  "filename": "invoice_abc.pdf", // Added filename for context
   "status": "processed",
-  "final_data": {
-    "invoice_number": "INV-001",
-    "amount_total": 150.75,
+  "created_at": "2024-07-28T15:30:00Z", // Added timestamp
+  "preview_data": { // Data extracted by OCR/AI, potentially edited by user
+    "invoice_number": "INV-001-MODIFIED",
+    "amount_total": 151.00,
     "date": "2024-07-20",
-    "bill_to": "Client Corp",
-    "currency": "USD",
-    // ... other extracted fields
+    // ... other fields
   },
-  "preview_data": {
-     // Potentially slightly different data if preview/final differ
-     "invoice_number": "INV-001",
-     "amount_total": 150.75,
-     // ...
-  }
+  "final_data": { // Data after confirmation (copied from preview_data at time of confirm)
+    "invoice_number": "INV-001-MODIFIED",
+    "amount_total": 151.00,
+    "date": "2024-07-20",
+    // ... other fields
+  },
+  "agent_response": "Raw text response from the AI model during extraction." // Raw response may be included
 }
 ```
-*(Note: `preview_data` contains the data extracted by the background task (`process_invoice_task`). `final_data` holds the data after it has been explicitly confirmed via the `POST /confirm` endpoint. They might be identical if confirmation happens without changes).*
+*(Note: `preview_data` holds the current "working" data, modifiable via the PATCH endpoint. `final_data` is a snapshot of `preview_data` when the invoice was confirmed. `agent_response` stores the raw output from the AI service for debugging or reference.)*
 
 **Response (Error - 404 Not Found):**
-If the invoice with the specified ID does not exist.
+If the invoice ID does not exist.
 ```json
 {
   "error": "Invoice not found"
@@ -193,12 +198,68 @@ If the invoice with the specified ID does not exist.
 
 ---
 
-### 4. Confirm Invoice Data
+### 4. Update Invoice Preview Data (Real-time Edit)
+
+`PATCH /api/invoices/<int:invoice_id>/preview`
+
+**Description:**
+Updates the `preview_data` JSON object for an invoice, typically during manual validation (`waiting_validation` status). Uses database row-level locking to prevent conflicts. Emits a `invoice_preview_updated` WebSocket event upon successful update.
+
+**Path Parameters:**
+- `invoice_id` (integer, required): The ID of the invoice to update.
+
+**Request Body:**
+- **Content-Type:** `application/json`
+- **Body:** Must contain the *entire* `preview_data` object with the desired changes. Fields not included in the request will be removed or defaulted.
+
+```json
+{
+  "preview_data": {
+    "invoice_number": "UPDATED-INV-001",
+    "amount_total": 151.00,
+    "date": "2024-07-21",
+    "bill_to": "Client Corp Updated",
+    "currency": "USD",
+    "items": [ /* updated items array */ ]
+    // ... include ALL fields required in the preview data structure
+  }
+}
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "Datos de previsualización actualizados correctamente",
+  "invoice_id": 15
+}
+```
+
+**Response (Error - 400 Bad Request):**
+- Invalid JSON body (`{"error": "La petición debe contener datos JSON"}`)
+- Missing `preview_data` key (`{"error": "El cuerpo JSON debe contener el campo 'preview_data'"}`)
+- `preview_data` is not a JSON object (`{"error": "'preview_data' debe ser un objeto JSON válido (dict)"}`)
+- Cannot serialize `preview_data` (`{"error": "Error al serializar 'preview_data' a JSON: [details]"}`)
+
+**Response (Error - 404 Not Found):**
+If the invoice ID does not exist.
+```json
+{
+  "error": "Factura con ID [invoice_id] no encontrada"
+}
+```
+
+**Response (Error - 500 Internal Server Error):**
+- Database update error (`{"error": "Error de base de datos al actualizar la factura"}`)
+- Unexpected server error (`{"error": "Error interno inesperado del servidor"}`)
+
+---
+
+### 5. Confirm Invoice Data
 
 `POST /api/invoices/<int:invoice_id>/confirm`
 
 **Description:**
-Confirms the data extracted by the background task for an invoice currently in the `waiting_validation` state. This copies the data from `preview_data` to `final_data` and updates the invoice status to `processed`.
+Confirms the `preview_data` for an invoice, typically when it's in the `waiting_validation` state. This action copies the current `preview_data` to `final_data` and changes the invoice status to `processed`.
 
 **Path Parameters:**
 - `invoice_id` (integer, required): The ID of the invoice to confirm.
@@ -213,7 +274,7 @@ Confirms the data extracted by the background task for an invoice currently in t
 ```
 
 **Response (Error - 404 Not Found):**
-If the invoice with the specified ID does not exist.
+If the invoice ID does not exist.
 ```json
 {
   "error": "Invoice not found"
@@ -221,21 +282,28 @@ If the invoice with the specified ID does not exist.
 ```
 
 **Response (Error - 400 Bad Request):**
-If the invoice has no `preview_data` to confirm.
+If the invoice has no `preview_data` (should not happen if status is `waiting_validation`).
 ```json
 {
   "error": "No preview data to confirm"
 }
 ```
+If the invoice is not in `waiting_validation` status (or other allowed state if logic changes).
+```json
+// Example - Actual message might vary
+{
+  "error": "Invoice must be in 'waiting_validation' status to be confirmed. Current status: [current_status]"
+}
+```
 
 ---
 
-### 5. Reject Invoice
+### 6. Reject Invoice
 
 `POST /api/invoices/<int:invoice_id>/reject`
 
 **Description:**
-Manually rejects an invoice, typically when it's in `waiting_validation`, `processing`, or `failed` state. This sets the status to `rejected`. Rejected invoices can be retried.
+Manually rejects an invoice. Allowed from states like `waiting_validation`, `processing`, or `failed`. Sets the status to `rejected`. A reason can optionally be provided. Rejected invoices can potentially be retried.
 
 **Path Parameters:**
 - `invoice_id` (integer, required): The ID of the invoice to reject.
@@ -244,10 +312,10 @@ Manually rejects an invoice, typically when it's in `waiting_validation`, `proce
 - **Content-Type:** `application/json`
 ```json
 {
-  "reason": "Optional reason for rejection provided by the user."
+  "reason": "Data mismatch requiring re-scan." // Optional reason
 }
 ```
-If no reason is provided, a default message "Manual rejection by the user." is used.
+(Default reason: "Manual rejection by the user.")
 
 **Response (Success - 200 OK):**
 ```json
@@ -259,7 +327,7 @@ If no reason is provided, a default message "Manual rejection by the user." is u
 ```
 
 **Response (Error - 404 Not Found):**
-If the invoice with the specified ID does not exist.
+If the invoice ID does not exist.
 ```json
 {
   "error": "Invoice not found"
@@ -267,37 +335,37 @@ If the invoice with the specified ID does not exist.
 ```
 
 **Response (Error - 400 Bad Request):**
-If the invoice is not in a state that allows rejection (e.g., already `processed` or `rejected`). The allowed statuses seem to be `waiting_validation`, `processing`, `failed`.
+If the invoice cannot be rejected from its current status (e.g., already `processed`).
 ```json
 {
-  "error": "Cannot reject an invoice with status [current_status]"
+  "error": "Cannot reject an invoice with status [current_status]" // Specific allowed statuses depend on implementation (e.g., `waiting_validation`, `processing`, `failed`)
 }
 ```
 
 ---
 
-### 6. Retry Invoice Processing
+### 7. Retry Invoice Processing
 
 `POST /api/invoices/<int:invoice_id>/retry`
 
 **Description:**
-Requests a retry for an invoice that previously `failed` processing or was `rejected`. This sets the status back to `processing` and re-queues the `process_invoice_task` background job.
+Initiates reprocessing for an invoice that is currently in a `failed` or `rejected` state. Sets the status back to `processing` and re-queues the `process_invoice_task` Celery job.
 
 **Path Parameters:**
 - `invoice_id` (integer, required): The ID of the invoice to retry.
 
 **Response (Success - 202 Accepted):**
-Indicates the retry request was accepted and processing will begin shortly.
+Indicates the retry request was accepted. Processing will start asynchronously.
 ```json
 {
   "invoice_id": 17,
-  "status": "processing",
+  "status": "processing", // Status is immediately updated
   "message": "Invoice sent back for processing."
 }
 ```
 
 **Response (Error - 404 Not Found):**
-If the invoice with the specified ID does not exist.
+If the invoice ID does not exist.
 ```json
 {
   "error": "Invoice not found"
@@ -305,7 +373,7 @@ If the invoice with the specified ID does not exist.
 ```
 
 **Response (Error - 400 Bad Request):**
-If the invoice is not in a state that allows retrying (only `failed` or `rejected` allowed).
+If the invoice is not in a retryable state (`failed` or `rejected`).
 ```json
 {
   "error": "Only failed or rejected invoices can be retried. Current status: [current_status]"
@@ -314,33 +382,33 @@ If the invoice is not in a state that allows retrying (only `failed` or `rejecte
 
 ---
 
-### 7. Download Original Invoice File
+### 8. Download Original Invoice File
 
 `GET /api/invoices/<int:invoice_id>/download`
 
 **Description:**
-Downloads the original file associated with an invoice.
+Downloads the original file that was uploaded for a specific invoice.
 
 **Path Parameters:**
-- `invoice_id` (integer, required): The ID of the invoice whose file to download.
+- `invoice_id` (integer, required): The ID of the invoice.
 
 **Response (Success - 200 OK):**
-- **Content-Type:** The original MIME type of the uploaded file (e.g., `application/pdf`, `image/png`).
+- **Content-Type:** Original MIME type (e.g., `application/pdf`).
 - **Content-Disposition:** `attachment; filename="[original_filename]"`
-- **Body:** The raw binary content of the file.
+- **Body:** Raw file content.
 
 **Response (Error - 404 Not Found):**
-- If the invoice ID does not exist. (`description="Invoice not found."`)
-- If the invoice record exists but the associated file is missing on the server. (`description="File not found on the server."`)
+- Invoice ID not found (`{"error": "Invoice not found."}`)
+- Invoice exists, but the file is missing on the server (`{"error": "File not found on the server."}`)
 
 ---
 
-### 8. Get Invoice Status Summary
+### 9. Get Invoice Status Summary
 
 `GET /api/invoices/status-summary/`
 
 **Description:**
-Retrieves a summary count of invoices grouped by their current status.
+Retrieves a count of invoices grouped by their current status. Useful for dashboard displays.
 
 **Response (Success - 200 OK):**
 ```json
@@ -352,35 +420,42 @@ Retrieves a summary count of invoices grouped by their current status.
     "failed": 1,
     "rejected": 3,
     "duplicated": 10
-    // Only statuses with counts > 0 might be included
+    // Only statuses with counts > 0 are typically included.
   }
+}
+```
+**Response (Error - 500 Internal Server Error):**
+If there's an error querying the database.
+```json
+{
+  "error": "Error querying database for summary"
 }
 ```
 
 ---
 
-### 9. Get Processed Invoice Data
+### 10. Get Processed Invoice Data (Filtered)
 
 `GET /api/invoices/data`
 
 **Description:**
-Retrieves detailed, structured data specifically from invoices that have been fully processed (status `processed`, data stored in `InvoiceData` model). Allows pagination and filtering by `op_number` found within the invoice items.
+Retrieves structured data specifically from invoices that are fully `processed` (data resides in `final_data`). Supports pagination and filtering by specific data points within the extracted items (e.g., `op_number`).
 
 **Query Parameters:**
-- `page` (integer, optional, default: 1): The page number to retrieve.
-- `per_page` (integer, optional, default: 10): Number of processed invoice data entries per page.
-- `op_number` (string, optional): Filter results to include only invoices containing this specific `op_number` (advertising number) within their items.
+- `page` (integer, optional, default: 1): Page number.
+- `per_page` (integer, optional, default: 10): Items per page.
+- `op_number` (string, optional): Filter results to include only processed invoices containing this `op_number` (advertising number) within their line items.
 
 **Response (Success - 200 OK):**
-Returns a paginated list of structured invoice data.
+Paginated list of final, structured invoice data.
 
 ```json
 {
   "page": 1,
   "per_page": 10,
-  "total": 25, // Total matching the op_number filter if applied
+  "total": 25, // Total processed invoices matching the filter (if any)
   "invoices": [
-    {
+    { // Represents data derived from Invoice.final_data
       "invoice_id": 15,
       "invoice_number": "FINV-2024-001",
       "amount_total": 1500.50,
@@ -388,10 +463,7 @@ Returns a paginated list of structured invoice data.
       "bill_to": "Customer A",
       "currency": "EUR",
       "payment_terms": "NET 30",
-      "advertising_numbers": [ // Unique list aggregated from items
-        "OP123",
-        "OP456"
-      ],
+      "advertising_numbers": ["OP123", "OP456"], // Aggregated list
       "items": [
         {
           "description": "Service X",
@@ -405,137 +477,99 @@ Returns a paginated list of structured invoice data.
         }
       ]
     }
-    // ... more processed invoice data entries
+    // ... more processed invoices
   ]
 }
 ```
-*(Note: The `total` in the response reflects the count after filtering, if `op_number` is used).*
-
----
-
-### 10. Update Invoice Preview Data (Real-time)
-
-`PATCH /api/invoices/<int:invoice_id>/preview`
-
-**Description:**
-Allows updating the `preview_data` JSON object for a specific invoice. This is typically used during the manual validation step before confirming an invoice. The endpoint uses database row-level locking (`with_for_update`) to prevent simultaneous conflicting updates. After a successful update, it emits a WebSocket event to notify connected clients in real-time.
-
-**Path Parameters:**
-- `invoice_id` (integer, required): The ID of the invoice whose `preview_data` is to be updated.
-
-**Request Body:**
-- **Content-Type:** `application/json`
-```json
-{
-  "preview_data": {
-    "invoice_number": "UPDATED-INV-001",
-    "amount_total": 151.00,
-    "date": "2024-07-21",
-    "bill_to": "Client Corp Updated",
-    "currency": "USD",
-    "items": [
-        // updated items array
-    ]
-    // ... other extracted fields to be updated
-  }
-}
-```
-*(Note: The entire `preview_data` object should be provided in the request body. Fields not included might be removed or defaulted depending on implementation, although the current implementation overwrites the whole field).*
-
-**Response (Success - 200 OK):**
-```json
-{
-  "message": "Datos de previsualización actualizados correctamente",
-  "invoice_id": 15
-}
-```
-
-**Response (Error - 400 Bad Request):**
-- If the request body is not valid JSON. (`{"error": "La petición debe contener datos JSON"}`)
-- If the `preview_data` key is missing in the JSON body. (`{"error": "El cuerpo JSON debe contener el campo 'preview_data'"}`)
-- If the value of `preview_data` is not a valid JSON object (dictionary). (`{"error": "'preview_data' debe ser un objeto JSON válido (dict)"}`)
-- If the provided `preview_data` object cannot be serialized to JSON. (`{"error": "Error al serializar 'preview_data' a JSON: [details]"}`)
-
-**Response (Error - 404 Not Found):**
-If the invoice with the specified ID does not exist.
-```json
-{
-  "error": "Factura con ID [invoice_id] no encontrada"
-}
-```
+*(Note: The structure here reflects the expected format within `Invoice.final_data`)*
 
 **Response (Error - 500 Internal Server Error):**
-- If a database error occurs during the update (e.g., locking issues, connection problems). (`{"error": "Error de base de datos al actualizar la factura"}`)
-- If an unexpected server error occurs. (`{"error": "Error interno inesperado del servidor"}`)
+If there's an error querying the database.
+```json
+{
+  "error": "Error querying processed invoice data"
+}
+```
 
 ---
 
 ## 📡 Real-time Updates via WebSockets
 
-The API utilizes WebSockets (likely via Flask-SocketIO) to push real-time updates for invoices as they are processed by the background task or manually modified.
+The backend uses Flask-SocketIO to push real-time updates to connected clients, reducing the need for polling.
 
 **Namespace:** `/invoices`
 
 **Events:**
 
 1.  **`invoice_status_update`**
-    - **Description:** Emitted whenever the overall `status` of an invoice changes (e.g., `processing`, `waiting_validation`, `processed`, `failed`, `rejected`).
+    - **Trigger:** Emitted by the `db_session_context_with_event` context manager in `invoice_tasks.py` *after* an invoice's status is successfully committed to the database during background processing or via API actions like `confirm`, `reject`, `retry`.
+    - **Description:** Notifies clients about changes in the overall status of any invoice.
     - **Data Payload:**
       ```json
       {
-        "id": <integer>,         // The ID of the invoice that was updated
-        "status": "<string>",    // The new status
-        "filename": "<string>"   // The filename
+        "id": <integer>,       // ID of the updated invoice
+        "status": "<string>",  // The new status (e.g., "processing", "waiting_validation", "failed")
+        "filename": "<string>" // Filename for context
       }
       ```
 
 2.  **`invoice_preview_updated`**
-    - **Description:** Emitted specifically after a successful `PATCH /api/invoices/<int:invoice_id>/preview` request. This signals that the `preview_data` has been modified.
-    - **Emitted To:** A specific room for the invoice (`invoice_<invoice_id>`). Clients interested in updates for a specific invoice should join this room.
+    - **Trigger:** Emitted specifically after a successful `PATCH /api/invoices/<int:invoice_id>/preview` request successfully updates the `preview_data` in the database.
+    - **Description:** Signals that the editable `preview_data` for a *specific* invoice has changed, allowing interfaces editing that invoice to refresh.
+    - **Emitted To:** A specific room: `invoice_<invoice_id>`. Clients interested in live edits for a particular invoice must join this room.
     - **Data Payload:**
       ```json
       {
-        "id": <integer>,         // The ID of the invoice that was updated
-        "preview_data": { ... } // The complete, updated preview_data object
+        "id": <integer>,       // ID of the updated invoice
+        "preview_data": { ... } // The complete, *new* preview_data object
       }
       ```
 
-**Example Usage (Conceptual JavaScript):**
+**Client-Side Handling (Conceptual):**
+
+Clients (like the Next.js frontend) should connect to the `/invoices` namespace.
+
+-   **Listening for General Updates:** Listen to `invoice_status_update` to update invoice lists or dashboards showing overall status changes.
+-   **Listening for Specific Edits:** When a user opens an invoice for editing/validation:
+    1.  The client should emit a `join` event to the server: `socket.emit('join', { room: 'invoice_123' });` (where 123 is the invoice ID).
+    2.  The client should listen for `invoice_preview_updated` events. If received for the currently viewed invoice ID, update the displayed `preview_data` accordingly.
+    3.  When the user navigates away, the client should emit a `leave` event: `socket.emit('leave', { room: 'invoice_123' });`.
+
 ```javascript
-// Assumes socket.io client library is included
+// Example using socket.io-client
+import { io } from 'socket.io-client';
+
 const socket = io('/invoices'); // Connect to the namespace
 
-socket.on('connect', () => {
-  console.log('Connected to WebSocket namespace /invoices');
-  // Example: Join room for a specific invoice when viewing/editing it
-  const currentInvoiceId = 123; // Get this from your app's state
-  socket.emit('join', { room: `invoice_${currentInvoiceId}` });
-  console.log(`Joined room invoice_${currentInvoiceId}`);
-});
+socket.on('connect', () => console.log('WebSocket connected'));
+socket.on('disconnect', () => console.log('WebSocket disconnected'));
 
-// Listen for general status changes
+// General status updates
 socket.on('invoice_status_update', (data) => {
-  console.log('Invoice Status Update Received:', data);
-  // Update UI list view or general status indicators
+  console.log('Status Update:', data);
+  // Update UI for invoice list, dashboards etc. based on data.id and data.status
 });
 
-// Listen for specific preview data changes (only if joined the room)
+// Specific preview data updates (for the invoice being viewed/edited)
 socket.on('invoice_preview_updated', (data) => {
-  console.log('Invoice Preview Data Updated Received:', data);
-  // Update the detailed view/editor form for the specific invoice (data.id)
-  // with the new data.preview_data
+  console.log('Preview Update:', data);
+  const currentlyEditingInvoiceId = /* ... get ID from your app state ... */;
+  if (data.id === currentlyEditingInvoiceId) {
+    // Update the form/display with data.preview_data
+  }
 });
 
-socket.on('disconnect', () => {
-  console.log('Disconnected from WebSocket');
-  // Optionally leave rooms or handle reconnection logic
-});
+// Function to call when user starts editing invoice ID 123
+function joinInvoiceRoom(invoiceId) {
+  socket.emit('join', { room: `invoice_${invoiceId}` });
+}
 
-// Example: Leave room when navigating away from the invoice view
-// const currentInvoiceId = 123;
-// socket.emit('leave', { room: `invoice_${currentInvoiceId}` });
+// Function to call when user stops editing invoice ID 123
+function leaveInvoiceRoom(invoiceId) {
+  socket.emit('leave', { room: `invoice_${invoiceId}` });
+}
 ```
 
-This allows clients to reflect the progress, final state, and manual edits of invoice processing without needing to continuously poll the API endpoints.
+This WebSocket integration provides a responsive user experience, reflecting changes initiated by background processing or user actions in near real-time.
 
 ---
