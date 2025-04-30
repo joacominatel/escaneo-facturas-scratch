@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { MoreHorizontal, CheckCircle, XCircle, RefreshCw, Download, Eye, ArrowRightCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,6 +16,7 @@ import { type InvoiceStatus, type InvoiceListItem } from "@/lib/api/types"
 import { downloadInvoice } from "@/lib/api/invoices"
 import { toast } from "sonner"
 import { useRouter } from 'next/navigation' // Para la redirección
+import { RejectDialog } from './reject-dialog'
 
 interface InvoiceActionsProps {
   invoice: InvoiceListItem
@@ -25,6 +26,7 @@ interface InvoiceActionsProps {
 
 export function InvoiceActions({ invoice, onActionComplete, onViewDetails }: InvoiceActionsProps) {
   const router = useRouter()
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const {
     confirmInvoice,
     rejectInvoice,
@@ -61,12 +63,16 @@ export function InvoiceActions({ invoice, onActionComplete, onViewDetails }: Inv
     }
   }
 
-  const handleReject = async () => {
-    // Podrías añadir un modal aquí para pedir la razón
-    const result = await rejectInvoice(invoice.id /*, "Razón opcional" */)
+  const handleReject = async (reason?: string) => {
+    const result = await rejectInvoice(invoice.id, reason)
     if (result) {
+      setIsRejectDialogOpen(false)
       onActionComplete() // Refrescar lista
     }
+  }
+
+  const handleRejectClick = () => {
+    setIsRejectDialogOpen(true)
   }
 
   const handleRetry = async () => {
@@ -108,7 +114,7 @@ export function InvoiceActions({ invoice, onActionComplete, onViewDetails }: Inv
           <DropdownMenuItem key="confirm" onClick={handleConfirm} disabled={isLoading}>
             <CheckCircle className="mr-2 h-4 w-4" /> Confirmar
           </DropdownMenuItem>,
-          <DropdownMenuItem key="reject" onClick={handleReject} disabled={isLoading}>
+          <DropdownMenuItem key="reject" onClick={handleRejectClick} disabled={isLoading}>
             <XCircle className="mr-2 h-4 w-4" /> Rechazar
           </DropdownMenuItem>,
           <DropdownMenuItem key="view" onClick={handleView} disabled={isLoading}>
@@ -177,16 +183,25 @@ export function InvoiceActions({ invoice, onActionComplete, onViewDetails }: Inv
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0" disabled={isLoading}>
-          <span className="sr-only">Abrir menú</span>
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {availableActions}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0" disabled={isLoading}>
+            <span className="sr-only">Abrir menú</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {availableActions}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <RejectDialog
+        isOpen={isRejectDialogOpen}
+        onClose={() => setIsRejectDialogOpen(false)}
+        onConfirm={handleReject}
+        invoiceId={invoice.id}
+      />
+    </>
   )
 } 
