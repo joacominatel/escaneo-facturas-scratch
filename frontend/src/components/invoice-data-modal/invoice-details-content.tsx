@@ -53,11 +53,16 @@ export function InvoiceDetailsContent({ details }: InvoiceDetailsContentProps) {
                         <span className="text-muted-foreground">Fecha:</span>
                         <span className="font-medium text-right">{formatDate(date)}</span>
                     </div>
-                    <div className="flex justify-between md:col-span-2">
-                        <span className="text-muted-foreground">Proveedor:</span>
-                        <span className="font-medium text-right max-w-[70%] truncate" title={bill_to}>{bill_to || 'N/A'}</span>
+                    <div className="flex justify-between items-center">
+                        <span>Bill To:</span>
+                        <span 
+                          className="font-medium text-right max-w-[70%] truncate" 
+                          title={typeof bill_to === 'object' && bill_to !== null ? JSON.stringify(bill_to, null, 2) : bill_to}
+                        >
+                          {typeof bill_to === 'object' && bill_to !== null ? bill_to.name : bill_to || 'N/A'}
+                        </span>
                     </div>
-                     <div className="flex justify-between">
+                    <div className="flex justify-between">
                         <span className="text-muted-foreground">Términos Pago:</span>
                         <span className="font-medium text-right">{payment_terms || 'N/A'}</span>
                     </div>

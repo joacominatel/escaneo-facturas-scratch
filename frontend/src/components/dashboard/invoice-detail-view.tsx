@@ -183,7 +183,14 @@ export function InvoiceDetailView({ invoiceId, onClose, onActionComplete, classN
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-1">
               <h3 className="text-sm font-medium text-muted-foreground">Bill To</h3>
-              <p className="text-sm">{invoiceData.bill_to || "Not specified"}</p>
+              {typeof invoiceData.bill_to === 'object' && invoiceData.bill_to !== null ? (
+                <>
+                  <p className="text-sm font-semibold">{invoiceData.bill_to.name || "Not specified"}</p>
+                  <p className="text-xs text-muted-foreground">{invoiceData.bill_to.address || ""}</p>
+                </>
+              ) : (
+                <p className="text-sm">{invoiceData.bill_to || "Not specified"}</p>
+              )}
             </div>
             <div className="space-y-1">
               <h3 className="text-sm font-medium text-muted-foreground">Amount</h3>
