@@ -13,6 +13,7 @@ const navTabs = [
   { href: "/", label: "Dashboard" },
   { href: "/history", label: "Historial" },
   { href: "/upload", label: "Subir" },
+  { href: "/company", label: "Compañias" },
 ];
 
 interface NavbarProps {
