@@ -58,7 +58,7 @@ class LogService:
     @classmethod
     def _add_log(cls, invoice_id, event, level, category, details, origin=None, extra=None, ip_address=None):
         """
-        Método interno para añadir un log a la base de datos.
+        Método interno para añadir un log a la base de datos o solo a consola si invoice_id es None.
         Maneja la transacción y excepciones.
         """
         if origin is None:
@@ -80,12 +80,19 @@ class LogService:
                     except:
                         extra[key] = str(value)
         
-        # Log a consola primero
-        log_msg = f"[{level.upper()}] [{category}] Invoice {invoice_id}: {event} - {details}"
+        # Log a consola siempre
+        invoice_context = f"Invoice {invoice_id}" if invoice_id is not None else "App"
+        log_msg = f"[{level.upper()}] [{category}] [{invoice_context}]: {event} - {details}"
+        if extra:
+            log_msg += f" | Extra: {extra}" # Añadir extra a consola para mejor debug
         console_logger = getattr(logger, level.lower(), logger.info)
         console_logger(log_msg)
         
-        # Crear el objeto de log
+        # Si no hay invoice_id, no guardar en base de datos
+        if invoice_id is None:
+            return None
+        
+        # Crear el objeto de log para la BD
         log_entry = InvoiceLog(
             invoice_id=invoice_id,
             event=event,
@@ -111,19 +118,21 @@ class LogService:
                 error_msg = f"Error al guardar log en BD: {str(e)}"
                 logger.error(error_msg)
                 # Intentar guardar un log de error en la base de datos
-                try:
-                    error_log = InvoiceLog(
-                        invoice_id=invoice_id,
-                        event="log_error",
-                        level=LogLevel.ERROR,
-                        category=LogCategory.DATABASE,
-                        origin="LogService._add_log",
-                        details=error_msg
-                    )
-                    session.add(error_log)
-                    session.commit()
-                except:
-                    logger.error("Error crítico: No se pudo guardar el log de error en la base de datos")
+                # No intentar guardar log de error si el original ya tenía invoice_id=None
+                if invoice_id is not None:
+                    try:
+                        error_log = InvoiceLog(
+                            invoice_id=invoice_id,
+                            event="log_error",
+                            level=LogLevel.ERROR,
+                            category=LogCategory.DATABASE,
+                            origin="LogService._add_log",
+                            details=error_msg
+                        )
+                        session.add(error_log)
+                        session.commit()
+                    except:
+                        logger.error("Error crítico: No se pudo guardar el log de error en la base de datos")
                 return None
             except Exception as e:
                 session.rollback()

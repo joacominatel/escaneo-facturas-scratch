@@ -3,6 +3,7 @@ import shutil
 from app.core.extensions import db
 from app.models.company import Company
 from app.models.company_prompt import CompanyPrompt
+from app.services.log_service import LogService, LogLevel, LogCategory
 
 # Constantes para rutas de prompts
 BASE_PROMPT_LAYOUT = "app/prompts/prompt_layout.txt"
@@ -40,6 +41,7 @@ class CompanyService:
 
         session = db.session
         company = None # Inicializar company fuera del try para el finally
+        LogService.info(None, "create_company_attempt", f"Intentando crear empresa: {name}", LogCategory.SYSTEM)
 
         try:
             # 1. Crear la empresa
@@ -72,12 +74,36 @@ class CompanyService:
             # Commit de todas las operaciones
             session.commit()
             
+            log_details = f"Empresa '{name}' (ID: {company_id}) creada exitosamente."
+            log_extra = {"company_id": company_id, "prompt_path": new_prompt_path}
+            LogService.info(None, "company_created", log_details, LogCategory.SYSTEM, extra=log_extra)
             print(f"Empresa '{name}' (ID: {company_id}) creada exitosamente con prompt por defecto en '{new_prompt_path}'")
             return company
 
+        except ValueError as e:
+            session.rollback()
+            error_msg = f"Error al crear empresa '{name}': {str(e)}"
+            LogService.error(None, "create_company_failed", error_msg, LogCategory.SYSTEM, extra={"company_name": name})
+            print(error_msg)
+            raise e # Re-lanzar la excepción original
+        except CompanyServiceError as e:
+            session.rollback()
+            error_msg = f"Error (CompanyService) al crear empresa '{name}': {str(e)}"
+            LogService.error(None, "create_company_failed", error_msg, LogCategory.SYSTEM, extra={"company_name": name})
+            print(error_msg)
+            # Limpieza del directorio si aplica
+            if company and company.id and os.path.exists(os.path.join(COMPANY_PROMPTS_DIR, str(company.id))):
+                try:
+                    shutil.rmtree(os.path.join(COMPANY_PROMPTS_DIR, str(company.id)))
+                    LogService.info(None, "create_company_cleanup", f"Directorio de prompts limpiado para {company.id}", LogCategory.SYSTEM)
+                except OSError as rm_err:
+                    LogService.error(None, "create_company_cleanup_failed", f"Error limpiando directorio {company.id}: {rm_err}", LogCategory.SYSTEM)
+            raise e
         except Exception as e:
             session.rollback()
-            print(f"Error al crear la empresa '{name}': {e}")
+            error_msg = f"Error inesperado al crear la empresa '{name}': {str(e)}"
+            LogService.critical(None, "create_company_unexpected_error", error_msg, LogCategory.SYSTEM, extra={"company_name": name}, exc_info=True)
+            print(error_msg)
             # Limpieza adicional si es necesario (ej: borrar directorio si se creó)
             if company and company.id and os.path.exists(os.path.join(COMPANY_PROMPTS_DIR, str(company.id))):
                  # Intentar borrar el directorio si la transacción falló después de crearlo
@@ -106,7 +132,12 @@ class CompanyService:
         Returns:
             La ruta del archivo del prompt por defecto, o None si no se encuentra.
         """
+        LogService.debug(None, "get_default_prompt_path_request", f"Buscando prompt por defecto para empresa {company_id}", LogCategory.SYSTEM)
         prompt = CompanyPrompt.query.filter_by(company_id=company_id, is_default=True).first()
+        if prompt:
+            LogService.debug(None, "get_default_prompt_path_found", f"Prompt por defecto encontrado: {prompt.prompt_path}", LogCategory.SYSTEM, extra={"company_id": company_id, "prompt_path": prompt.prompt_path})
+        else:
+            LogService.debug(None, "get_default_prompt_path_not_found", f"No se encontró prompt por defecto para empresa {company_id}", LogCategory.SYSTEM, extra={"company_id": company_id})
         return prompt.prompt_path if prompt else None
 
     # --- Métodos adicionales (ej: listar empresas, obtener empresa por id, etc.) ---
@@ -128,16 +159,22 @@ class CompanyService:
         if not prompt_path:
             raise ValueError(f"No se encontró un prompt para la empresa {company_id} con ID {prompt_id}")
         with open(prompt_path, 'r') as file:
-            return file.read()
+            content = file.read()
+            LogService.debug(None, "get_prompt_content_success", f"Contenido de prompt leído para empresa {company_id}, prompt {prompt_id}", LogCategory.SYSTEM, extra={"company_id": company_id, "prompt_id": prompt_id})
+            return content
         
     @staticmethod
     def set_default_prompt(company_id: int, prompt_id: int):
+        LogService.info(None, "set_default_prompt_attempt", f"Intentando establecer prompt {prompt_id} como defecto para empresa {company_id}", LogCategory.SYSTEM, extra={"company_id": company_id, "prompt_id": prompt_id})
         prompt = CompanyPrompt.query.filter_by(company_id=company_id, id=prompt_id).first()
         if not prompt:
+            error_msg = f"No se encontró un prompt para la empresa {company_id} con ID {prompt_id}"
+            LogService.error(None, "set_default_prompt_failed", error_msg, LogCategory.SYSTEM, extra={"company_id": company_id, "prompt_id": prompt_id})
             raise ValueError(f"No se encontró un prompt para la empresa {company_id} con ID {prompt_id}")
         # Desmarcar todos los prompts como default
         CompanyPrompt.query.filter_by(company_id=company_id).update({'is_default': False})
         # Marcar el prompt seleccionado como default
         prompt.is_default = True
         db.session.commit()
+        LogService.info(None, "set_default_prompt_success", f"Prompt {prompt_id} establecido como defecto para empresa {company_id}", LogCategory.SYSTEM, extra={"company_id": company_id, "prompt_id": prompt_id, "prompt_path": prompt.prompt_path})
         return prompt
