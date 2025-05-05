@@ -14,3 +14,8 @@ class Config:
     SOCKETIO_MESSAGE_QUEUE = os.getenv('SOCKETIO_MESSAGE_QUEUE', 'redis://redis:6379/0')
     CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/1')
     CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/2')
+    
+    # Configuración de caché con Redis
+    CACHE_TYPE = os.getenv('CACHE_TYPE', 'redis')
+    CACHE_REDIS_URL = os.getenv('CACHE_REDIS_URL', 'redis://redis:6379/3')
+    CACHE_DEFAULT_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', 3600))  # 1 hora por defecto
