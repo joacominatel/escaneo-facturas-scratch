@@ -59,7 +59,7 @@ export function InvoiceActions({ invoice, onActionComplete, onViewDetails }: Inv
   const handleConfirm = async () => {
     const result = await confirmInvoice(invoice.id)
     if (result) {
-      onActionComplete() // Refrescar lista
+      // onActionComplete() // Ya no es necesario, WS actualizará
     }
   }
 
@@ -67,7 +67,7 @@ export function InvoiceActions({ invoice, onActionComplete, onViewDetails }: Inv
     const result = await rejectInvoice(invoice.id, reason)
     if (result) {
       setIsRejectDialogOpen(false)
-      onActionComplete() // Refrescar lista
+      // onActionComplete() // Ya no es necesario, WS actualizará
     }
   }
 
@@ -78,7 +78,7 @@ export function InvoiceActions({ invoice, onActionComplete, onViewDetails }: Inv
   const handleRetry = async () => {
     const result = await retryInvoice(invoice.id)
     if (result) {
-      onActionComplete() // Refrescar lista
+      // onActionComplete() // Ya no es necesario, WS actualizará
     }
   }
 

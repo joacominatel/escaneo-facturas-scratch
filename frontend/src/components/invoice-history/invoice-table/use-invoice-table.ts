@@ -15,6 +15,7 @@ import { LOCALSTORAGE_KEY_PAGE_SIZE, LOCALSTORAGE_KEY_STATUSES } from './constan
 export function useInvoiceTable() {
     // --- Estados de Datos y Carga --- 
     const [data, setData] = useState<InvoiceListItem[]>([]);
+    const dataRef = useRef(data); // <-- Ref para datos actuales
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState(0);
@@ -40,6 +41,12 @@ export function useInvoiceTable() {
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
+    // --- Debugging: Log rowSelection changes ---
+    useEffect(() => {
+        console.log('[useInvoiceTable Debug] rowSelection changed:', rowSelection);
+    }, [rowSelection]);
+    // --- End Debugging ---
 
     // --- Estados del WebSocket (desde Contexto) ---
     const {
@@ -137,35 +144,43 @@ export function useInvoiceTable() {
         highlightTimeoutRef.current.set(id, timeoutId); // Guardar el timeout
     }, []);
 
+    // --- Efecto para actualizar dataRef ---
+    useEffect(() => {
+        dataRef.current = data;
+    }, [data]);
+
     // --- Handler para Actualizaciones de Estado WS ---
     const handleWsStatusUpdate = useCallback((update: InvoiceStatusUpdateData) => {
         console.log("[useInvoiceTable] WS Status Update:", update);
-        
+
         // Aplicar highlight
         triggerRowHighlight(update.id);
-        
-        let found = false;
-        setData(currentData => {
-            const invoiceIndex = currentData.findIndex(inv => inv.id === update.id);
-            if (invoiceIndex !== -1) {
-                found = true;
-                const updatedData = [...currentData];
-                updatedData[invoiceIndex] = { ...updatedData[invoiceIndex], status: update.status as InvoiceStatus };
-                console.log("[useInvoiceTable] Actualizando estado de la factura en la tabla.");
-                return updatedData;
-            }
-            return currentData; // No modificar si no se encuentra
-        });
 
-        // Si no se encontró en los datos actuales, recargar
-        if (!found) {
-            console.log(`[useInvoiceTable] Factura ${update.id} no encontrada, recargando datos...`);
+        // Comprobar si la factura existe en los datos actuales usando el ref
+        const invoiceExists = dataRef.current.some(inv => inv.id === update.id);
+
+        if (invoiceExists) {
+            // Si existe, actualizar el estado in-place
+            setData(currentData => {
+                const invoiceIndex = currentData.findIndex(inv => inv.id === update.id);
+                // Doble check por si acaso, aunque ya sabemos que existe
+                if (invoiceIndex !== -1) {
+                    const updatedData = [...currentData];
+                    updatedData[invoiceIndex] = { ...updatedData[invoiceIndex], status: update.status as InvoiceStatus };
+                    console.log("[useInvoiceTable] Actualizando estado in-place.");
+                    return updatedData;
+                }
+                return currentData; // No debería pasar si invoiceExists es true
+            });
+        } else {
+            // Si no existe en los datos actuales, recargar
+            console.log(`[useInvoiceTable] Factura ${update.id} no encontrada en datos actuales (ref), recargando...`);
             // No resetear selección al recargar por WS
-            fetchData(false); 
+            fetchData(false);
             // Podríamos mostrar un toast diferente para nuevas facturas
             // toast.info(`Nueva factura recibida: ${update.filename}`);
         }
-    }, [fetchData, triggerRowHighlight]);
+    }, [fetchData, triggerRowHighlight]); // Ya no depende de data
 
     // --- Efecto para suscribirse/desuscribirse a los updates --- 
     useEffect(() => {
