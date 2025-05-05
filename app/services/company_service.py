@@ -117,3 +117,16 @@ class CompanyService:
     @staticmethod
     def get_company_by_id(company_id: int):
         return Company.query.get(company_id) 
+    
+    @staticmethod
+    def list_company_prompts(company_id: int):
+        return CompanyPrompt.query.filter_by(company_id=company_id).all()
+    
+    @staticmethod
+    def get_prompt_content(company_id: int, prompt_id: int):
+        prompt_path = CompanyPrompt.query.filter_by(company_id=company_id, id=prompt_id).first().prompt_path
+        if not prompt_path:
+            raise ValueError(f"No se encontró un prompt para la empresa {company_id} con ID {prompt_id}")
+        with open(prompt_path, 'r') as file:
+            return file.read()
+        
