@@ -5,6 +5,7 @@ import time
 import requests.exceptions
 import tenacity
 import json
+import hashlib
 
 load_dotenv()
 
@@ -38,25 +39,39 @@ class OpenAIService:
         self.cache_enabled = cache_enabled
         self._response_cache = {}
 
-        # Cargar prompts desde archivos (solo una vez)
-        self._load_prompts()
+        # Cargar SOLO el prompt de resumen por defecto al iniciar
+        self._load_summary_prompt()
+        # El prompt de extracción se cargará dinámicamente
+        self.default_extract_prompt_path = "app/prompts/extract_invoice_data.txt"
         
-    def _load_prompts(self):
-        """Carga los prompts desde archivos una sola vez"""
+    def _load_summary_prompt(self):
+        """Carga solo el prompt de resumen."""
         try:
             with open("app/prompts/summarize_invoice.txt", "r", encoding="utf-8") as f:
                 self.summary_prompt_template = f.read()
-                
-            with open("app/prompts/extract_invoice_data.txt", "r", encoding="utf-8") as f:
-                self.extract_data_prompt_template = f.read()
         except Exception as e:
-            print(f"Error cargando prompts: {e}")
+            print(f"Error cargando prompt de resumen: {e}")
             raise
 
-    def _get_cache_key(self, prompt, model):
-        """Genera una clave de caché simple basada en el prompt y modelo"""
-        import hashlib
-        return hashlib.md5(f"{prompt}:{model}".encode()).hexdigest()
+    def _load_extract_prompt(self, prompt_path: str | None) -> str:
+        """Carga el prompt de extracción desde la ruta especificada o la ruta por defecto."""
+        path_to_load = prompt_path if prompt_path and os.path.exists(prompt_path) else self.default_extract_prompt_path
+        
+        if not os.path.exists(path_to_load):
+             print(f"Error: No se encontró el archivo de prompt de extracción en: {path_to_load}")
+             # Considerar si lanzar un error o usar un prompt genérico de respaldo
+             raise FileNotFoundError(f"Prompt de extracción no encontrado en {path_to_load}")
+             
+        try:
+            with open(path_to_load, "r", encoding="utf-8") as f:
+                return f.read()
+        except Exception as e:
+            print(f"Error cargando prompt de extracción desde {path_to_load}: {e}")
+            raise
+
+    def _get_cache_key(self, prompt_content: str, model: str) -> str:
+        """Genera una clave de caché basada en el contenido del prompt y modelo"""
+        return hashlib.md5(f"{prompt_content}:{model}".encode()).hexdigest()
 
     @retry_with_backoff(max_tries=3)
     def summarize_invoice_text(self, raw_text: str) -> str:
@@ -99,61 +114,92 @@ class OpenAIService:
             raise
 
     @retry_with_backoff(max_tries=3)
-    def extract_structured_data(self, raw_text: str) -> dict:
-        """Extrae datos estructurados del texto de la factura con reintentos en caso de error"""
+    def extract_structured_data(self, raw_text: str, prompt_path: str | None = None) -> dict:
+        """Extrae datos estructurados usando un prompt específico o el por defecto."""
         # Truncar texto si es demasiado largo
         if len(raw_text) > 20000:
             raw_text = raw_text[:20000] + "..."
-            
-        prompt = self.extract_data_prompt_template.replace("{raw_text}", raw_text.strip())
         
-        # Verificar caché
+        # Cargar el template del prompt adecuado
+        try:
+            extract_data_prompt_template = self._load_extract_prompt(prompt_path)
+        except Exception as e:
+             # Manejar error de carga de prompt (loguear, posible fallback?)
+             print(f"Error crítico al cargar el prompt ({prompt_path or 'default'}), usando un prompt básico.")
+             # Fallback muy básico si todo falla
+             extract_data_prompt_template = "Extrae los siguientes campos del texto de la factura en formato JSON: invoice_number, amount_total, date.\n\nTexto:\n{raw_text}"
+        
+        # Construir el prompt final
+        prompt_content = extract_data_prompt_template.replace("{raw_text}", raw_text.strip())
+        
+        # Verificar caché usando el contenido del prompt actual
         if self.cache_enabled:
-            cache_key = self._get_cache_key(prompt, self.model)
+            cache_key = self._get_cache_key(prompt_content, self.model)
             if cache_key in self._response_cache:
-                print("Usando respuesta en caché para extracción de datos")
-                return self._response_cache[cache_key]
+                print(f"Usando respuesta en caché para extracción (prompt: {prompt_path or 'default'})")
+                # Asegurarse que lo cacheado sea el diccionario
+                cached_value = self._response_cache[cache_key]
+                if isinstance(cached_value, dict):
+                     return cached_value
+                else:
+                     print("Advertencia: Valor cacheado no es un diccionario, recalculando.")
+                     # Podría intentar decodificar si es string, o simplemente seguir
 
         try:
             start_time = time.time()
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "Sos un experto en análisis de facturas."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": "Sos un experto en análisis de facturas y extracción de datos estructurados."}, # Rol actualizado
+                    {"role": "user", "content": prompt_content}
                 ],
                 temperature=0.2,
-                max_tokens=4096,
+                max_tokens=4096, # Podría necesitar ajustarse según el prompt
+                response_format={ "type": "json_object" } # Usar modo JSON si el modelo lo soporta
             )
 
             content = response.choices[0].message.content.strip()
             
-            # Procesar el JSON de respuesta
+            # Procesar el JSON de respuesta (ya debería ser JSON por response_format)
             try:
-                if content.startswith("```json"):
-                    content = content[7:-3].strip()  # remove ```json and ``` at the end
-                elif content.startswith("```"):
-                    content = content[3:-3].strip()  # remove ```
-
+                # Directamente decodificar JSON
                 structured_data = json.loads(content)
                 
-                # Guardar en caché
+                # Guardar en caché el diccionario decodificado
                 if self.cache_enabled:
                     self._response_cache[cache_key] = structured_data
                 
-                print(f"Datos estructurados extraídos en {time.time() - start_time:.2f} segundos")
+                print(f"Datos estructurados extraídos en {time.time() - start_time:.2f} segundos (prompt: {prompt_path or 'default'})")
                 return structured_data
                 
             except json.JSONDecodeError:
-                print(f"Error al convertir la respuesta a JSON:\n{content[:200]}...")
-                raise ValueError("Error al convertir la respuesta a JSON:\n" + content)
+                print(f"Error al convertir la respuesta a JSON (incluso con response_format):
+{content[:200]}...")
+                # Intentar limpiar si aún falla (aunque response_format debería evitarlo)
+                if content.startswith("```json"):
+                    content_cleaned = content[7:-3].strip()
+                elif content.startswith("```"):
+                    content_cleaned = content[3:-3].strip()
+                else:
+                    content_cleaned = content
+                try:
+                    structured_data = json.loads(content_cleaned)
+                    if self.cache_enabled:
+                         self._response_cache[cache_key] = structured_data # Cachear el resultado limpio
+                    print("Datos estructurados extraídos después de limpieza manual.")
+                    return structured_data
+                except json.JSONDecodeError as inner_e:
+                    print(f"Fallo final al decodificar JSON: {inner_e}")
+                    raise ValueError("Error al convertir la respuesta a JSON: " + content_cleaned)
                 
         except Exception as e:
-            print(f"Error en API de OpenAI durante extracción: {str(e)}")
+            # Capturar errores específicos de OpenAI API si es necesario
+            print(f"Error en API de OpenAI durante extracción (prompt: {prompt_path or 'default'}): {str(e)}")
             raise
         
-    def extract_structured_data_and_raw(self, raw_text: str) -> tuple[dict, str]:
-        """Extrae tanto datos estructurados como resumen del texto de la factura"""
-        structured_data = self.extract_structured_data(raw_text)
+    def extract_structured_data_and_raw(self, raw_text: str, prompt_path: str | None = None) -> tuple[dict, str]:
+        """Extrae datos estructurados (usando prompt específico) y resumen."""
+        structured_data = self.extract_structured_data(raw_text, prompt_path=prompt_path)
+        # El resumen no cambia, usa el prompt de resumen fijo
         raw_response = self.summarize_invoice_text(raw_text)
         return structured_data, raw_response
