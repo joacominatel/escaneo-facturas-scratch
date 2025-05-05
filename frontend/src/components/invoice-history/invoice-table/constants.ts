@@ -19,6 +19,7 @@ export const INVOICE_STATUSES: InvoiceStatus[] = [
   "failed",
   "rejected",
   "duplicated",
+  "pending_processing",
 ];
 
 // Claves para localStorage

@@ -91,6 +91,12 @@ export const getInvoiceTableColumns = (
         size: 200,
     },
     {
+        accessorKey: "company_name",
+        header: "Compañía",
+        cell: ({ row }: InvoiceCellContext) => <div className="font-medium truncate" title={row.getValue("company_name")}>{row.getValue("company_name")}</div>,
+        size: 200,
+    },
+    {
         id: "actions",
         header: () => <div className="text-right pr-4">Acciones</div>,
         cell: ({ row }: InvoiceCellContext) => (
