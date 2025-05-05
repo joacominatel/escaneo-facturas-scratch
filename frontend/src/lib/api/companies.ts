@@ -76,6 +76,7 @@ export const updateCompanyDefaultPrompt = async (companyId: number, promptConten
   return await apiRequest<CompanyPrompt>(`/api/companies/${companyId}/prompt`, {
     method: 'PUT',
     body: JSON.stringify({ prompt_content: promptContent }),
+    headers: { 'Content-Type': 'application/json' },
   });
 };
 
@@ -92,4 +93,15 @@ export const setPromptAsDefault = async (companyId: number, promptId: number): P
   });
 };
 
-// TODO: Considerar añadir funciones para crear/eliminar compañías si es necesario. 
+/**
+ * Crea un nuevo prompt para una compañía.
+ * @param companyId - ID de la compañía.
+ * @param promptContent - Contenido del nuevo prompt.
+ * @returns Promise<CompanyPrompt> - El nuevo prompt creado.
+ */
+export const createPrompt = async (companyId: number, promptContent: string): Promise<CompanyPrompt> => {
+  return await apiRequest<CompanyPrompt>(`/api/companies/${companyId}/prompt`, {
+    method: 'PUT',
+    body: JSON.stringify({ prompt_content: promptContent }),
+  });
+};

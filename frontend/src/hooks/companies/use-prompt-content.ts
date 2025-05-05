@@ -25,7 +25,6 @@ export function usePromptContent(companyId: number | null, promptId: number | nu
     setError(null)
     setContent(null) // Limpiar contenido anterior
     try {
-      // ASUNCIÓN: getPromptContent existe y funciona
       const data = await getPromptContent(companyId, promptId)
       setContent(data)
     } catch (err) {
@@ -36,9 +35,6 @@ export function usePromptContent(companyId: number | null, promptId: number | nu
       setIsLoading(false)
     }
   }, [promptId])
-
-  // No hacemos fetch automático al montar, el usuario debe dispararlo
-  // mediante fetchContent
 
   return { content, isLoading, error, fetchContent: fetchContentCallback }
 } 
