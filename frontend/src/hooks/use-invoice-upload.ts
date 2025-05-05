@@ -5,11 +5,14 @@ import { getApiBaseUrl } from "@/lib/api"
 import { toast } from "sonner"
 
 export interface UploadResponse {
-  invoice_id: number
+  invoice_id: number | null // ID can be null for errors/duplicates
   filename: string
-  status: string
+  status: string // e.g., "processing", "duplicated", "error"
   message: string
 }
+
+// Definir un tipo para el placeholder genérico
+export const GENERIC_COMPANY_ID = "generic";
 
 export function useInvoiceUpload() {
   const [isUploading, setIsUploading] = useState(false)
@@ -17,39 +20,34 @@ export function useInvoiceUpload() {
   const [uploadResponse, setUploadResponse] = useState<UploadResponse[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const uploadInvoices = async (files: File[]): Promise<UploadResponse[] | null> => {
+  const uploadInvoices = async (
+    files: File[], 
+    // Aceptar companyId opcional (puede ser número o el string "generic")
+    companyId?: number | typeof GENERIC_COMPANY_ID 
+  ): Promise<UploadResponse[] | null> => {
     if (!files.length) {
       setError("No files selected")
       return null
     }
 
-    // Validate file types
+    // 1. Eliminar validación ZIP y permitir solo PDF
     const validFiles = files.filter((file) => {
       const fileType = file.type
       const fileExtension = file.name.split(".").pop()?.toLowerCase()
-
-      return (
-        fileType === "application/pdf" ||
-        fileExtension === "pdf" ||
-        fileType === "application/zip" ||
-        fileType === "application/x-zip-compressed" ||
-        fileExtension === "zip"
-      )
+      return fileType === "application/pdf" || fileExtension === "pdf"
     })
 
     if (validFiles.length !== files.length) {
-      setError("Only PDF and ZIP files are allowed")
-      return null
+      setError("Solo se permiten archivos PDF")
+      // Podríamos devolver las respuestas de error para los archivos no válidos si la API lo soportara
+      // Por ahora, simplemente bloqueamos la subida si hay inválidos.
+      return null 
     }
 
-    // Check if there's more than one ZIP file
-    const zipFiles = validFiles.filter(
-      (file) => file.type === "application/zip" || file.type === "application/x-zip-compressed" || file.name.endsWith(".zip")
-    )
-
-    if (zipFiles.length > 1) {
-      setError("Only one ZIP file can be uploaded at a time")
-      return null
+    // 2. Validar que no haya archivos inválidos antes de proceder
+    if (validFiles.length === 0) {
+        setError("Ningún archivo PDF válido seleccionado.");
+        return null;
     }
 
     try {
@@ -59,11 +57,19 @@ export function useInvoiceUpload() {
 
       const formData = new FormData()
       
-      // Append all files with the same field name "file"
       validFiles.forEach((file) => {
-        formData.append("file", file)
+        formData.append("file", file) // Key debe ser "file" según API docs
       })
 
+      // 3. Añadir company_id a FormData si es válido y no genérico
+      if (companyId && companyId !== GENERIC_COMPANY_ID) {
+          formData.append("company_id", String(companyId))
+          console.log("Uploading with Company ID:", companyId) // Para depuración
+      } else {
+          console.log("Uploading without specific Company ID (Generic).") // Para depuración
+      }
+
+      // --- Lógica de subida con XMLHttpRequest (sin cambios funcionales aquí) --- 
       const xhr = new XMLHttpRequest()
       
       xhr.upload.addEventListener("progress", (event) => {
@@ -74,34 +80,58 @@ export function useInvoiceUpload() {
       })
 
       const response = await new Promise<UploadResponse[]>((resolve, reject) => {
-        xhr.open("POST", `${getApiBaseUrl()}/api/invoices/ocr`)
+        xhr.open("POST", `${getApiBaseUrl()}/api/invoices/ocr`) // Endpoint correcto
+        
+        // Considerar añadir headers si se requiere autenticación
+        // xhr.setRequestHeader('Authorization', 'Bearer YOUR_TOKEN');
         
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
-              const data = JSON.parse(xhr.responseText)
-              resolve(data)
-            } catch {
-              reject(new Error("Failed to parse response"))
+              const data = JSON.parse(xhr.responseText) as UploadResponse[]
+              // Verificar si la respuesta es realmente un array
+              if (Array.isArray(data)) {
+                   resolve(data)
+              } else {
+                   // Si la API devuelve un solo objeto en éxito, envolverlo en array
+                   // O ajustar el tipo UploadResponse si no siempre es array
+                   console.warn("API response was not an array, wrapping it.", data)
+                   // Asumiendo que si no es array, es un error o una respuesta inesperada
+                   // O podría ser un solo objeto UploadResponse si solo se sube 1 archivo?
+                   // Ajustar según comportamiento real de la API.
+                   // Por seguridad, rechazamos si no es array.
+                   reject(new Error("Respuesta inesperada del servidor (no es un array)"))
+              }
+            } catch (parseError) {
+              console.error("Error parsing response:", xhr.responseText, parseError)
+              reject(new Error("No se pudo interpretar la respuesta del servidor"))
             }
           } else {
-            reject(new Error(`Upload failed with status ${xhr.status}`))
+              // Intentar parsear el error del cuerpo si es JSON
+              let errorMessage = `Error en la subida: ${xhr.status} ${xhr.statusText}`
+              try {
+                  const errorData = JSON.parse(xhr.responseText)
+                  errorMessage = errorData.error || errorData.message || errorMessage
+              } catch {}
+              reject(new Error(errorMessage))
           }
         }
         
         xhr.onerror = () => {
-          reject(new Error("Network error occurred"))
+          reject(new Error("Error de red durante la subida"))
         }
         
         xhr.send(formData)
       })
 
-      setUploadResponse(response)
+      setUploadResponse(response) 
+      toast.success("Archivos subidos correctamente!") // Mover toast aquí
       return response
+
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred"
+      const errorMessage = err instanceof Error ? err.message : "Ocurrió un error desconocido durante la subida"
       setError(errorMessage)
-      toast.error("Upload failed", {
+      toast.error("Fallo en la subida", {
         description: errorMessage,
       })
       return null
