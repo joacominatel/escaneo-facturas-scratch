@@ -1,0 +1,20 @@
+# Ignorar archivos y directorios comunes
+.git/
+.gitignore
+.env
+*.pyc
+__pycache__/
+.pytest_cache/
+
+# Ignorar el entorno virtual
+venv/
+
+# Ignorar directorios específicos del proyecto
+docs/
+.cursor/
+
+# Ignorar archivos de Docker y configuración
+docker/
+docker-compose.yml
+README.md
+new_workflow.md 
