@@ -6,6 +6,7 @@ export type InvoiceStatus =
   | "failed" 
   | "rejected" 
   | "duplicated"
+  | "pending_processing"
 
 export interface InvoiceListItem {
   id: number
@@ -86,4 +87,26 @@ export interface FetchInvoiceHistoryOptions {
   // dateTo?: string   // Not in current api.ts, but could be added based on docs
   sortBy?: keyof InvoiceListItem | string // Allow known keys or custom strings
   sortOrder?: "asc" | "desc"
+}
+
+/**
+ * Representa una empresa en el sistema.
+ */
+export interface Company {
+  id: number;
+  name: string;
+  created_at: string | null; // ISO 8601 date string or null
+  updated_at: string | null; // ISO 8601 date string or null
+}
+
+/**
+ * Representa una versión específica de un prompt asociado a una empresa.
+ */
+export interface CompanyPrompt {
+  id: number;
+  company_id: number;
+  version: number;
+  prompt_path: string;
+  is_default: boolean;
+  created_at: string | null; // ISO 8601 date string or null
 }
