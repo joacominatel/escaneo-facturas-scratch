@@ -1,7 +1,10 @@
 from flask import Blueprint, request, jsonify
 from app.services.company_service import CompanyService, CompanyServiceError
 from app.models.company import Company # Para type hint si es necesario
+from app.services.prompt_service import PromptService, PromptServiceError
+import logging
 
+logger = logging.getLogger(__name__)
 company_bp = Blueprint('company_bp', __name__, url_prefix='/api/companies')
 
 @company_bp.route('/', methods=['POST'])
@@ -52,4 +55,35 @@ def get_company(company_id):
         print(f"Error inesperado en GET /companies/{company_id}: {e}")
         return jsonify({"error": "Ocurrió un error interno al obtener la empresa"}), 500
 
-# --- Endpoints adicionales para gestionar prompts (POST /<id>/prompts, etc.) pueden ir aquí --- 
+@company_bp.route('/<int:company_id>/prompt', methods=['PUT'])
+def update_company_prompt_route(company_id):
+    """
+    Actualiza el prompt por defecto de una empresa creando una nueva versión.
+    Espera un JSON con la clave 'prompt_content'.
+    """
+    data = request.get_json()
+    if not data or 'prompt_content' not in data:
+        return jsonify({"error": "El campo 'prompt_content' es requerido en el JSON"}), 400
+
+    new_content = data['prompt_content']
+
+    try:
+        # Llamar al servicio para actualizar el prompt
+        new_prompt = PromptService.update_company_prompt(company_id, new_content)
+        # Devolver los detalles del nuevo prompt creado
+        return jsonify(new_prompt.to_dict()), 200
+    except ValueError as ve:
+        # Error de validación (ej: contenido vacío)
+        return jsonify({"error": str(ve)}), 400
+    except PromptServiceError as pse:
+        # Error específico del servicio (ej: empresa no encontrada, error de DB/archivo)
+        # Podríamos mapear códigos de error específicos si el servicio los proporcionara
+        if "no encontrada" in str(pse):
+             return jsonify({"error": str(pse)}), 404 # Not Found
+        else:
+             # Otros errores del servicio (considerar 500 Internal Server Error o 409 Conflict si aplica)
+             return jsonify({"error": f"Error del servicio de prompts: {pse}"}), 500
+    except Exception as e:
+        # Otros errores inesperados
+        logger.error(f"Error inesperado en PUT /companies/{company_id}/prompt: {e}", exc_info=True)
+        return jsonify({"error": "Ocurrió un error interno al actualizar el prompt"}), 500
