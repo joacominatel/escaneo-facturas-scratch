@@ -79,5 +79,17 @@ export const updateCompanyDefaultPrompt = async (companyId: number, promptConten
   });
 };
 
-// TODO: Añadir función para marcar un prompt como default (PUT /api/companies/{company_id}/prompts/{prompt_id}/default)
-// export const setPromptAsDefault = async (companyId: number, promptId: number): Promise<void> => { ... } 
+/**
+ * Marca un prompt específico como el por defecto para una compañía.
+ * ASUNCIÓN: Endpoint PUT /api/companies/{company_id}/prompts/{prompt_id}/set_default existe.
+ * @param companyId - ID de la compañía.
+ * @param promptId - ID del prompt a marcar como default.
+ * @returns Promise<void> - No devuelve contenido en éxito.
+ */
+export const setPromptAsDefault = async (companyId: number, promptId: number): Promise<void> => {
+  await apiRequest<void>(`/api/companies/${companyId}/prompts/${promptId}/set_default`, {
+    method: 'POST',
+  });
+};
+
+// TODO: Considerar añadir funciones para crear/eliminar compañías si es necesario. 

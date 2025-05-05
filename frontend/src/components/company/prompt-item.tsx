@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { CompanyPrompt } from '@/lib/api';
+import { useSetPromptDefault } from '@/hooks/companies/use-set-prompt-default'; // Importar hook
 import { Button } from '@/components/ui/button';
 import {
   AccordionContent,
@@ -17,11 +18,24 @@ import { PromptContentDisplay } from './prompt-content-display'; // Importar sub
 interface PromptItemProps {
     companyId: number;
     prompt: CompanyPrompt;
-    onSetDefault: (promptId: number) => void; // Callback para marcar como default
-    isSetDefaultDisabled: boolean; // Para deshabilitar mientras se hace la llamada
+    onSetDefaultSuccess: () => void; // Callback para refrescar lista tras éxito
+    // isSetDefaultDisabled: boolean; // Ya no es necesario, el hook maneja isLoading
 }
 
-export function PromptItem({ companyId, prompt, onSetDefault, isSetDefaultDisabled }: PromptItemProps) {
+export function PromptItem({ companyId, prompt, onSetDefaultSuccess }: PromptItemProps) {
+    const { mutate: setDefault, isLoading: isSettingDefault } = useSetPromptDefault(); // Usar hook
+
+    const handleSetDefaultClick = async (e: React.MouseEvent) => {
+        e.stopPropagation(); // Evitar que el acordeón se abra/cierre
+        try {
+            await setDefault(companyId, prompt.id);
+            onSetDefaultSuccess(); // Llamar al callback para refrescar
+        } catch (error) {
+            // El error ya se maneja (log/toast) en el hook
+            console.error("Fallo al marcar como default desde el componente:", error);
+        }
+    };
+
     return (
         <AccordionItem value={`prompt-${prompt.id}`} key={prompt.id}>
             <AccordionTrigger className="hover:no-underline text-sm px-4">
@@ -39,20 +53,17 @@ export function PromptItem({ companyId, prompt, onSetDefault, isSetDefaultDisabl
                              </span>
                          )}
                     </div>
-                     {/* TODO: Botón (deshabilitado) para marcar como default */} 
+                     {/* Botón para marcar como default */}
                      {!prompt.is_default && (
                          <Button
                              size="sm"
                              variant="ghost"
                              className="text-xs h-7 px-2 mr-2"
-                             onClick={(e) => { 
-                                 e.stopPropagation(); // Evitar que el acordeón se abra/cierre
-                                 onSetDefault(prompt.id); 
-                               }}
-                             disabled={isSetDefaultDisabled} // Deshabilitar mientras se procesa
-                             title="Marcar como Prompt por Defecto (Funcionalidad no implementada)"
+                             onClick={handleSetDefaultClick} // Usar nueva función
+                             disabled={isSettingDefault} // Usar isLoading del hook
+                             title="Marcar como Prompt por Defecto"
                          >
-                             {isSetDefaultDisabled ? <Loader2 className="h-3 w-3 animate-spin" /> : <Crown className="h-3 w-3 mr-1" />}
+                             {isSettingDefault ? <Loader2 className="h-3 w-3 animate-spin" /> : <Crown className="h-3 w-3 mr-1" />}
                              Marcar Default
                          </Button>
                      )}
