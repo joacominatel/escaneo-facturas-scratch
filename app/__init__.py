@@ -10,6 +10,7 @@ from app.api.invoice_status_summary_api import invoice_summary_bp
 from app.api.invoice_data_api import invoice_data_bp
 from app.api.invoice_download_api import invoice_download_bp
 from app.api.invoice_preview_update_api import invoice_preview_update_bp
+from app.api.company_api import company_bp
 
 def create_app():
     app = Flask(__name__)
@@ -54,5 +55,5 @@ def create_app():
     app.register_blueprint(invoice_data_bp)
     app.register_blueprint(invoice_download_bp)
     app.register_blueprint(invoice_preview_update_bp)
-    
+    app.register_blueprint(company_bp)
     return app
