@@ -11,7 +11,7 @@ Extraé los datos estructurados de la siguiente factura escaneada. Devolvé la i
       unit_price: number | null,
       amount: number | null,
       advertising_numbers: [OPxxxxx] // extraé todos los  de operación que comiencen con "OP"
-    }números
+    }
   ]
 - currency
 - payment_terms

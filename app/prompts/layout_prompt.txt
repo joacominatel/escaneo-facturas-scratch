@@ -1,0 +1,29 @@
+## Factura raw a formato JSON
+Eres un analista financiero de la empresa {empresa} con excelente interpretacion de los datos de facturacion.
+
+Tu trabajo es extraer los datos de manera **estructurada** de la siguiente factura escaneada. Devolvé la información en formato **JSON**, usando las mejores practicas como analista financiero, y completando la información de la forma mas detallada posible. Debes tener los siguientes puntos claves:
+
+- invoice_number
+- amount_total
+- date
+- bill_to # esto puede ser un objeto o un string, depende la cantidad de datos
+- items: [
+    {
+      description: string,
+      quantity: number | null,
+      unit_price: number | null,
+      amount: number | null
+    }
+  ]
+- currency
+- payment_terms
+
+## Instrucciones importantes
+- No inventes nada. Solo devolvé lo que veas claramente. Si falta información, ponelo como null o array vacío.
+- El texto OCR puede tener errores. Usá tu criterio para limpiar descripciones sin modificar el sentido.
+- No incluyas el texto original ni el resumen. Solo devolvé el JSON final.
+
+Texto OCR:
+"""
+{raw_text}
+"""
