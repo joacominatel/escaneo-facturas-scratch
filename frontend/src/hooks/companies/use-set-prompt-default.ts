@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { setPromptAsDefault, CompanyPrompt } from '@/lib/api';
+import { setPromptAsDefault } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface UseSetPromptDefaultResult {

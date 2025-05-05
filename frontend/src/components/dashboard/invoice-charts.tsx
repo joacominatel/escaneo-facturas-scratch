@@ -27,6 +27,7 @@ const statusConfig: Record<InvoiceStatus, { label: string; color: string }> = {
   failed: { label: "Falladas", color: "hsl(0, 74%, 52%)" },
   rejected: { label: "Rechazadas", color: "hsl(31, 90%, 55%)" },
   duplicated: { label: "Duplicadas", color: "hsl(45, 93%, 48%)" },
+  pending_processing: { label: "Pendientes de Procesamiento", color: "hsl(262, 83%, 56%)" },
 }
 
 export function InvoiceCharts({ className }: InvoiceChartsProps) {

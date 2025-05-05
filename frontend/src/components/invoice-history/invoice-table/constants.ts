@@ -8,6 +8,7 @@ export const statusColorMap: Record<InvoiceStatus, string> = {
   failed: "bg-red-100 text-red-800 hover:bg-red-200",
   rejected: "bg-orange-100 text-orange-800 hover:bg-orange-200",
   duplicated: "bg-gray-100 text-gray-800 hover:bg-gray-200",
+  pending_processing: "bg-gray-100 text-gray-800 hover:bg-gray-200",
 };
 
 // Lista de estados posibles

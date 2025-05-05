@@ -6,7 +6,7 @@ import { useUpdateCompanyPrompt } from '@/hooks/companies/use-update-company-pro
 import type { Company } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
-  Dialog, DialogClose,
+  Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,

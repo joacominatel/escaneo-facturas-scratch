@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { getPromptContent } from '@/lib/api'
 
 export interface UsePromptContentResult {
@@ -34,7 +34,7 @@ export function usePromptContent(companyId: number | null, promptId: number | nu
     } finally {
       setIsLoading(false)
     }
-  }, [promptId])
+  }, [promptId, companyId])
 
   return { content, isLoading, error, fetchContent: fetchContentCallback }
 } 
