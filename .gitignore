@@ -11,3 +11,5 @@ __pycache__/
 # app files
 uploads/*
 docs/Instructions.md
+
+app/prompts/companies/*

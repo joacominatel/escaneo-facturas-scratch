@@ -173,8 +173,8 @@ class OpenAIService:
                 return structured_data
                 
             except json.JSONDecodeError:
-                print(f"Error al convertir la respuesta a JSON (incluso con response_format):
-{content[:200]}...")
+                print(f"Error al convertir la respuesta a JSON (incluso con response_format): {content[:200]}...")
+                
                 # Intentar limpiar si aún falla (aunque response_format debería evitarlo)
                 if content.startswith("```json"):
                     content_cleaned = content[7:-3].strip()
