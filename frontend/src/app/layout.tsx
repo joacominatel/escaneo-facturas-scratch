@@ -4,8 +4,14 @@ import { Navbar } from "@/components/navbar"
 import { ThemeProvider } from "@/contexts/theme-context"
 import { WebSocketProvider } from "@/contexts/websocket-context"
 import { Toaster } from 'sonner'
+import { Metadata } from 'next'
 
 const inter = Inter({ subsets: ["latin"] })
+
+export const metadata: Metadata = {
+  title: 'Invoice Scanner',
+  description: 'Invoice Scanner',
+}
 
 export default function RootLayout({
   children,
