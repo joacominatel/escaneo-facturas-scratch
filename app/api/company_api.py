@@ -87,3 +87,23 @@ def update_company_prompt_route(company_id):
         # Otros errores inesperados
         logger.error(f"Error inesperado en PUT /companies/{company_id}/prompt: {e}", exc_info=True)
         return jsonify({"error": "Ocurrió un error interno al actualizar el prompt"}), 500
+    
+@company_bp.route('/<int:company_id>/prompts', methods=['GET'])
+def list_company_prompts(company_id):
+    """Lista todos los prompts de una empresa."""
+    try:
+        prompts = CompanyService.list_company_prompts(company_id)
+        return jsonify([prompt.to_dict() for prompt in prompts]), 200
+    except Exception as e:
+        print(f"Error inesperado en GET /companies/{company_id}/prompts: {e}")
+        return jsonify({"error": "Ocurrió un error interno al listar los prompts"}), 500
+    
+@company_bp.route('/<int:company_id>/prompts/<int:prompt_id>/content', methods=['GET'])
+def get_prompt_content(company_id, prompt_id):
+    """Obtiene el contenido de un prompt específico de una empresa."""
+    try:
+        content = CompanyService.get_prompt_content(company_id, prompt_id)
+        return jsonify({"content": content}), 200
+    except Exception as e:
+        print(f"Error inesperado en GET /companies/{company_id}/prompts/{prompt_id}/content: {e}")
+        return jsonify({"error": "Ocurrió un error interno al obtener el contenido del prompt"}), 500
