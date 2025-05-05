@@ -6,3 +6,6 @@ export * from './api/client'
 
 // Re-export invoice specific API functions
 export * from './api/invoices'
+
+// Re-export company specific API functions
+export * from './api/companies'
