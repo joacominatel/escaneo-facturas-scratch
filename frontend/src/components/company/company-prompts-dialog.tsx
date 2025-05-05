@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCompanyPrompts } from '@/hooks/companies/use-company-prompts';
 import { useUpdateCompanyPrompt } from '@/hooks/companies/use-update-company-prompt';
 import type { Company } from '@/lib/api';
@@ -27,16 +27,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, AlertCircle, PlusCircle } from 'lucide-react';
 import { PromptItem } from './prompt-item';
+import { usePromptContent } from '@/hooks/companies/use-prompt-content';
 
 interface UpdatePromptFormProps {
     companyId: number;
-    currentDefaultPromptContent: string | null;
+    initialContent: string | null;
+    isLoadingContent: boolean;
+    contentError: Error | null;
     onSuccess: () => void;
 }
 
-function UpdatePromptForm({ companyId, currentDefaultPromptContent, onSuccess }: UpdatePromptFormProps) {
-    const [newContent, setNewContent] = useState(currentDefaultPromptContent || '');
-    const { mutate: updatePrompt, isLoading, error } = useUpdateCompanyPrompt();
+function UpdatePromptForm({ companyId, initialContent, isLoadingContent, contentError, onSuccess }: UpdatePromptFormProps) {
+    const [newContent, setNewContent] = useState('');
+    const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
+    const { mutate: updatePrompt, isLoading: isUpdating, error: updateError } = useUpdateCompanyPrompt();
+
+    useEffect(() => {
+        if (!isLoadingContent && initialContent !== null && !hasLoadedInitial) {
+            setNewContent(initialContent);
+            setHasLoadedInitial(true);
+        }
+    }, [isLoadingContent, initialContent, hasLoadedInitial]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -59,28 +70,46 @@ function UpdatePromptForm({ companyId, currentDefaultPromptContent, onSuccess }:
                     <Label htmlFor={`prompt-content-${companyId}`} className="sr-only">
                         Contenido del Nuevo Prompt
                     </Label>
-                    <Textarea
-                        id={`prompt-content-${companyId}`}
-                        placeholder="Pega o escribe aquí el nuevo contenido del prompt..."
-                        value={newContent}
-                        onChange={(e) => setNewContent(e.target.value)}
-                        rows={15}
-                        className="col-span-3 text-xs"
-                        required
-                        disabled={isLoading}
-                    />
+                    {isLoadingContent && (
+                        <div className="flex items-center justify-center h-[300px] border rounded-md bg-muted/30">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            <span className="ml-2 text-muted-foreground">Cargando contenido actual...</span>
+                        </div>
+                    )}
+                    {contentError && !isLoadingContent && (
+                        <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Error al cargar contenido</AlertTitle>
+                            <AlertDescription>No se pudo cargar el contenido del prompt actual: {contentError.message}</AlertDescription>
+                        </Alert>
+                    )}
+                    {!isLoadingContent && (
+                        <Textarea
+                            id={`prompt-content-${companyId}`}
+                            placeholder={contentError ? "Error al cargar contenido previo." : "Pega o escribe aquí el nuevo contenido del prompt..."}
+                            value={newContent}
+                            onChange={(e) => setNewContent(e.target.value)}
+                            rows={15}
+                            className="col-span-3 text-xs"
+                            required
+                            disabled={isUpdating || isLoadingContent}
+                        />
+                    )}
                 </div>
-                {error && (
+                {updateError && (
                      <Alert variant="destructive" className="mt-2">
                         <AlertCircle className="h-4 w-4" />
                         <AlertTitle>Error al Actualizar</AlertTitle>
-                        <AlertDescription>{error.message}</AlertDescription>
+                        <AlertDescription>{updateError.message}</AlertDescription>
                     </Alert>
                 )}
             </div>
             <DialogFooter>
-                <Button type="submit" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                <Button type="button" variant="outline" onClick={onSuccess} disabled={isUpdating || isLoadingContent}>
+                     Cancelar 
+                 </Button>
+                <Button type="submit" disabled={isUpdating || isLoadingContent || !newContent.trim()}>
+                    {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Guardar Nueva Versión
                 </Button>
             </DialogFooter>
@@ -98,8 +127,27 @@ export function CompanyPromptsDialog({ company, children }: CompanyPromptsDialog
     const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
     const { prompts, isLoading: isLoadingPrompts, error: promptsError, refetch: refetchPrompts } = useCompanyPrompts(isListDialogOpen ? company.id : null);
     
+    // Obtener el prompt default actual
     const currentDefaultPrompt = prompts.find(p => p.is_default);
-    const placeholderDefaultContent = currentDefaultPrompt ? `// Contenido actual de la v${currentDefaultPrompt.version}\n// Edita o reemplaza este texto...` : "";
+    
+    // Hook para obtener el contenido del prompt default actual
+    // Se activa solo si el diálogo principal está abierto Y se encuentra un prompt default
+    const { 
+        content: currentDefaultContent, 
+        isLoading: isLoadingCurrentContent, 
+        error: currentContentError, 
+        fetchContent: fetchCurrentContent // Obtener función para posible re-fetch manual
+    } = usePromptContent(
+        isListDialogOpen && currentDefaultPrompt ? company.id : null, // Solo pasar IDs si es necesario
+        isListDialogOpen && currentDefaultPrompt ? currentDefaultPrompt.id : null
+    );
+
+    // Llamar a fetchContent explícitamente si las condiciones cambian y son válidas
+    useEffect(() => {
+        if (isListDialogOpen && currentDefaultPrompt) {
+            fetchCurrentContent();
+        }
+    }, [isListDialogOpen, currentDefaultPrompt, fetchCurrentContent]);
 
     const handleSetDefaultSuccess = () => {
         refetchPrompts();
@@ -136,7 +184,9 @@ export function CompanyPromptsDialog({ company, children }: CompanyPromptsDialog
                              </DialogHeader>
                              <UpdatePromptForm 
                                 companyId={company.id} 
-                                currentDefaultPromptContent={placeholderDefaultContent}
+                                initialContent={currentDefaultContent}
+                                isLoadingContent={isLoadingCurrentContent}
+                                contentError={currentContentError}
                                 onSuccess={handleUpdateSuccess}
                              />
                          </DialogContent>
