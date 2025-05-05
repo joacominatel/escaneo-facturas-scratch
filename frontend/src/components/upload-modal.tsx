@@ -1,20 +1,31 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Upload, X, FileText, File, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Upload, X, FileText, AlertCircle, CheckCircle2, Building, Loader2 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
-import { useInvoiceUpload } from "@/hooks/use-invoice-upload"
+import { useInvoiceUpload, GENERIC_COMPANY_ID } from "@/hooks/use-invoice-upload"
+import { useCompanies } from "@/hooks/companies/use-companies"
+import { useLocalStorage } from "@/hooks/use-local-storage"
 import { Progress } from "@/components/ui/progress"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 
 interface UploadModalProps {
   className?: string
   trigger?: React.ReactNode
 }
+
+const LOCAL_STORAGE_COMPANY_KEY = 'selectedCompanyIdForUpload';
 
 export function UploadModal({ className, trigger }: UploadModalProps) {
   const [files, setFiles] = useState<File[]>([])
@@ -32,6 +43,13 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
     resetUpload 
   } = useInvoiceUpload()
 
+  const { companies, isLoading: isLoadingCompanies, error: companiesError } = useCompanies()
+
+  const [selectedCompanyId, setSelectedCompanyId] = useLocalStorage<string | number>(
+      LOCAL_STORAGE_COMPANY_KEY, 
+      GENERIC_COMPANY_ID
+  );
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || [])
     validateAndAddFiles(selectedFiles)
@@ -46,38 +64,12 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
 
       return (
         fileType === "application/pdf" ||
-        fileExtension === "pdf" ||
-        fileType === "application/zip" ||
-        fileType === "application/x-zip-compressed" ||
-        fileExtension === "zip"
+        fileExtension === "pdf"
       )
     })
 
     if (validFiles.length !== selectedFiles.length) {
-      setError("Only PDF and ZIP files are allowed")
-    }
-
-    // Check if there's more than one ZIP file
-    const currentZipFiles = files.filter(
-      (file) => file.type === "application/zip" || file.type === "application/x-zip-compressed" || file.name.endsWith(".zip")
-    )
-    
-    const newZipFiles = validFiles.filter(
-      (file) => file.type === "application/zip" || file.type === "application/x-zip-compressed" || file.name.endsWith(".zip")
-    )
-    
-    if (currentZipFiles.length + newZipFiles.length > 1) {
-      setError("Only one ZIP file can be uploaded at a time")
-      // Filter out the new ZIP files if we already have one
-      if (currentZipFiles.length > 0) {
-        const filteredFiles = validFiles.filter(
-          (file) => !(file.type === "application/zip" || file.type === "application/x-zip-compressed" || file.name.endsWith(".zip"))
-        )
-        if (filteredFiles.length > 0) {
-          setFiles((prev) => [...prev, ...filteredFiles])
-        }
-        return
-      }
+      setError("Solo se permiten archivos PDF")
     }
 
     if (validFiles.length > 0) {
@@ -108,17 +100,19 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
 
   const handleUpload = async () => {
     if (files.length === 0) {
-      setError("Por favor, selecciona al menos un archivo para subir")
+      setError("Por favor, selecciona al menos un archivo PDF para subir")
       return
     }
-    
-    const response = await uploadInvoices(files)
+    setError(null);
+
+    const companyIdToSend = selectedCompanyId === GENERIC_COMPANY_ID ? undefined : Number(selectedCompanyId);
+
+    const response = await uploadInvoices(files, companyIdToSend)
     
     if (response) {
-      // Keep the modal open to show success state
       setTimeout(() => {
-        setFiles([])
         setIsOpen(false)
+        setFiles([])
         resetUpload()
       }, 3000)
     }
@@ -126,25 +120,19 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
 
   const handleClose = () => {
     setIsOpen(false)
-    setFiles([])
-    resetUpload()
-    setError(null)
+    setTimeout(() => {
+        setFiles([])
+        resetUpload()
+        setError(null)
+    }, 300)
   }
 
   const getFileIcon = (file: File) => {
-    const fileExtension = file.name.split(".").pop()?.toLowerCase()
-
-    if (fileExtension === "pdf") {
-      return <FileText className="h-5 w-5 text-red-500" />
-    } else if (fileExtension === "zip") {
-      return <File className="h-5 w-5 text-blue-500" />
-    }
-
-    return <File className="h-5 w-5" />
+    return <FileText className="h-5 w-5 text-red-500" />
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); else setIsOpen(true); }}>
       <DialogTrigger asChild>
         {trigger || (
           <Button className={cn("gap-2", className)}>
@@ -155,26 +143,51 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Subir Facturas</DialogTitle>
+          <DialogTitle>Subir Facturas PDF</DialogTitle>
         </DialogHeader>
         
         {uploadResponse ? (
           <div className="py-4 space-y-4">
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle2 className="h-5 w-5" />
-              <p className="font-medium">Subida exitosa!</p>
+              <p className="font-medium">Subida completada</p>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[300px] overflow-auto pr-2">
               {uploadResponse.map((item, index) => (
-                <div key={index} className="p-3 bg-muted/50 rounded-md">
-                  <p className="font-medium">{item.filename}</p>
-                  <p className="text-sm text-muted-foreground">{item.message}</p>
+                <div key={index} className={`p-3 rounded-md border ${item.status === 'error' || item.status === 'duplicated' ? 'bg-destructive/10 border-destructive/30' : 'bg-muted/50'}`}>
+                  <p className="font-medium break-words">{item.filename}</p>
+                  <p className={`text-sm ${item.status === 'error' || item.status === 'duplicated' ? 'text-destructive' : 'text-muted-foreground'}`}>{item.message}</p>
+                  {item.status !== 'error' && item.status !== 'duplicated' && item.invoice_id !== null && (
+                      <p className="text-xs text-muted-foreground mt-1">ID: {item.invoice_id} - Estado: {item.status}</p>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         ) : (
           <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+                <Label htmlFor="company-select">Asociar a Compañía (Opcional)</Label>
+                <Select 
+                    value={String(selectedCompanyId)} 
+                    onValueChange={(value) => setSelectedCompanyId(value === GENERIC_COMPANY_ID ? GENERIC_COMPANY_ID : Number(value))}
+                    disabled={isLoadingCompanies || isUploading}
+                >
+                    <SelectTrigger id="company-select" className="w-full">
+                        <SelectValue placeholder="Seleccionar compañía..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value={GENERIC_COMPANY_ID}>Genérico (Sin Compañía)</SelectItem>
+                        {companiesError && <p className='text-xs text-destructive p-2'>Error al cargar</p>}
+                        {isLoadingCompanies && <div className='flex justify-center p-2'><Loader2 className="h-4 w-4 animate-spin"/></div>}
+                        {!isLoadingCompanies && !companiesError && companies.map((company) => (
+                            <SelectItem key={company.id} value={String(company.id)}>
+                                {company.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
             <div
               className={cn(
                 "border-2 border-dashed rounded-lg p-6 text-center transition-colors",
@@ -190,14 +203,14 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                accept=".pdf,.zip"
+                accept=".pdf"
                 multiple
                 className="hidden"
               />
               <div className="flex flex-col items-center gap-2">
                 <Upload className="h-8 w-8 text-muted-foreground" />
-                <p className="text-sm font-medium">Arrastra y suelta archivos aquí o haz click para buscar</p>
-                <p className="text-xs text-muted-foreground">Soporta archivos PDF y ZIP (solo uno ZIP permitido)</p>
+                <p className="text-sm font-medium">Arrastra y suelta archivos PDF aquí o haz click</p>
+                <p className="text-xs text-muted-foreground">Soporta solo archivos PDF</p>
               </div>
             </div>
 
@@ -227,7 +240,7 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
                   <AnimatePresence>
                     {files.map((file, index) => (
                       <motion.li
-                        key={`${file.name}-${index}`}
+                        key={`${file.name}-${index}-${file.size}`}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, height: 0 }}
@@ -236,13 +249,13 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
                       >
                         <div className="flex items-center gap-2 truncate">
                           {getFileIcon(file)}
-                          <span className="truncate">{file.name}</span>
-                          <span className="text-xs text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
+                          <span className="truncate" title={file.name}>{file.name}</span>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">({(file.size / 1024).toFixed(1)} KB)</span>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 rounded-full"
+                          className="h-6 w-6 rounded-full flex-shrink-0"
                           onClick={(e) => {
                             e.stopPropagation()
                             removeFile(index)
@@ -259,12 +272,17 @@ export function UploadModal({ className, trigger }: UploadModalProps) {
               </div>
             )}
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={handleClose} disabled={isUploading}>
-                Cancel
+                Cancelar
               </Button>
               <Button onClick={handleUpload} disabled={files.length === 0 || isUploading}>
-                {isUploading ? "Subiendo..." : "Subir"}
+                {isUploading ? (
+                    <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Subiendo...
+                    </>
+                ) : `Subir ${files.length} archivo${files.length !== 1 ? 's' : ''}`}
               </Button>
             </div>
           </div>
