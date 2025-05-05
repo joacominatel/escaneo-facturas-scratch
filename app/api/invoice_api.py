@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 
 from app.models.invoice import Invoice
+from app.services.company_service import CompanyService # Importar CompanyService para validación
 from sqlalchemy import func
 from app.core.extensions import db
 # Importar el context manager
@@ -23,6 +24,21 @@ class InvoiceOCRAPI(MethodView):
     def post(self):
         if 'file' not in request.files:
             return jsonify({"error": "No se encontraron archivos"}), 400
+
+        # --- Obtener Company ID (opcional) --- 
+        company_id_str = request.form.get('company_id')
+        target_company_id = None
+        if company_id_str:
+            try:
+                target_company_id = int(company_id_str)
+                # Validar si la empresa existe
+                company = CompanyService.get_company_by_id(target_company_id)
+                if not company:
+                     return jsonify({"error": f"El company_id '{target_company_id}' no corresponde a una empresa existente."}), 400
+                print(f"Archivos serán asociados a la empresa ID: {target_company_id}")
+            except ValueError:
+                return jsonify({"error": "El campo 'company_id' debe ser un número entero."}), 400
+        # --- Fin Obtener Company ID --- 
 
         files = request.files.getlist("file")
         results = [] 
@@ -77,11 +93,12 @@ class InvoiceOCRAPI(MethodView):
                 })
                 continue
 
-            # Crear nueva factura para procesamiento
+            # Crear nueva factura para procesamiento CON company_id
             invoice = Invoice(
                 filename=filename,
                 file_path=filepath,
-                status="processing" # Estado inicial antes de Celery
+                status="pending_processing",
+                company_id=target_company_id # Asignar el company_id obtenido
             )
             invoices_to_add.append(invoice) # Añadir a la lista para commit único
 
@@ -92,6 +109,7 @@ class InvoiceOCRAPI(MethodView):
             results.append({
                 "invoice_id": None, # ID se asignará después del commit
                 "filename": invoice.filename,
+                "company_id": invoice.company_id, # Incluir company_id en la respuesta
                 "status": invoice.status,
                 "message": "La factura ha sido aceptada para procesamiento."
             })
@@ -115,10 +133,11 @@ class InvoiceOCRAPI(MethodView):
                     processed_index = 0
                     for i, result in enumerate(results):
                         # Solo actualizar y lanzar tarea para las aceptadas para procesamiento
-                        if result["status"] == "processing" and result["invoice_id"] is None:
+                        if result["status"] == "pending_processing" and result["invoice_id"] is None:
                             if processed_index < len(invoices_to_add):
                                 invoice = invoices_to_add[processed_index]
                                 results[i]["invoice_id"] = invoice.id # Asignar ID real
+                                results[i]["status"] = "processing" # Actualizar estado visual
                                 result["message"] = "La factura está siendo procesada automáticamente" # Mensaje actualizado
                                 
                                 # Lanzar tarea Celery
@@ -146,7 +165,7 @@ class InvoiceOCRAPI(MethodView):
                 # Marcar las facturas correspondientes en 'results' como fallidas
                 # (Podríamos refinar esto para saber cuáles exactamente fallaron si el error no fue genérico)
                 for result in results:
-                     if result["status"] == "processing" or result["status"] == "duplicated":
+                     if result["status"] == "pending_processing" or result["status"] == "duplicated":
                          # Asumimos que si hubo un error en el `with`, ninguna se procesó/guardó correctamente
                          result["status"] = "error"
                          result["message"] = "Error al guardar los registros en la base de datos o emitir evento."
@@ -171,6 +190,7 @@ class InvoiceDetailAPI(MethodView):
             "status": invoice.status,
             "final_data": invoice.final_data,
             "preview": invoice.preview_data,
+            "company_id": invoice.company_id # Devolver también el company_id
         }), 200
 
 # POST /api/invoices/ocr con uno o más archivos
