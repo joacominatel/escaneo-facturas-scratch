@@ -114,9 +114,10 @@ export function BulkActionBar({ selectedInvoices, onActionComplete, onClearSelec
         });
     }
 
-    onActionComplete(); // Refresca la tabla (y debería limpiar selección según la lógica en la tabla)
+    // Limpiar selección después de procesar y mostrar toasts
+    onClearSelection();
 
-  }, [selectedInvoices, confirmInvoice, retryInvoice, onActionComplete])
+  }, [selectedInvoices, confirmInvoice, retryInvoice, onClearSelection])
 
 
   if (selectedInvoices.length === 0) {
