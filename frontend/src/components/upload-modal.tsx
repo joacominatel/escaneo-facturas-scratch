@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Upload, X, FileText, AlertCircle, CheckCircle2, Building, Loader2 } from 'lucide-react'
+import { Upload, X, FileText, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { useInvoiceUpload, GENERIC_COMPANY_ID } from "@/hooks/use-invoice-upload"

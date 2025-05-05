@@ -33,7 +33,7 @@ export function CompanyGuide() {
                     <div>
                         <p className="font-medium text-green-900 dark:text-green-200">Prompts Personalizados</p>
                         <p className="text-muted-foreground text-xs">
-                            Cada compañía tiene su propio "prompt" (instrucciones para la IA), adaptado a la estructura única de sus facturas.
+                            Cada compañía tiene su propio prompt (instrucciones para la IA), adaptado a la estructura única de sus facturas.
                         </p>
                     </div>
                 </div>
