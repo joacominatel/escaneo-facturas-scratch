@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.services.company_service import CompanyService, CompanyServiceError
-from app.models.company import Company # Para type hint si es necesario
 from app.services.prompt_service import PromptService, PromptServiceError
+from app.core.extensions import cache
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,6 +20,8 @@ def create_company():
 
     try:
         company = CompanyService.create_company_with_default_prompt(name.strip())
+        # Invalidar caché relacionada con listado de empresas
+        cache.delete('companies_list')
         return jsonify(company.to_dict()), 201
     except ValueError as ve:
         # Error específico: la empresa ya existe
@@ -33,6 +35,7 @@ def create_company():
         return jsonify({"error": "Ocurrió un error interno al crear la empresa"}), 500
 
 @company_bp.route('/', methods=['GET'])
+@cache.cached(timeout=3600, key_prefix='companies_list')
 def list_companies():
     """Lista todas las empresas."""
     try:
@@ -43,6 +46,7 @@ def list_companies():
         return jsonify({"error": "Ocurrió un error interno al listar las empresas"}), 500
 
 @company_bp.route('/<int:company_id>', methods=['GET'])
+@cache.cached(timeout=3600, key_prefix=lambda: f'company_{request.view_args["company_id"]}')
 def get_company(company_id):
     """Obtiene los detalles de una empresa específica."""
     try:
@@ -70,6 +74,12 @@ def update_company_prompt_route(company_id):
     try:
         # Llamar al servicio para actualizar el prompt
         new_prompt = PromptService.update_company_prompt(company_id, new_content)
+        
+        # Invalidar caché relacionada con esta empresa y sus prompts
+        cache.delete(f'company_{company_id}')
+        cache.delete(f'company_prompts_{company_id}')
+        cache.delete_many([f'prompt_content_{company_id}_{prompt_id}' for prompt_id in range(1, 1000)])  # Invalidar todas las posibles cachés de prompts
+        
         # Devolver los detalles del nuevo prompt creado
         return jsonify(new_prompt.to_dict()), 200
     except ValueError as ve:
@@ -89,6 +99,7 @@ def update_company_prompt_route(company_id):
         return jsonify({"error": "Ocurrió un error interno al actualizar el prompt"}), 500
     
 @company_bp.route('/<int:company_id>/prompts', methods=['GET'])
+@cache.cached(timeout=3600, key_prefix=lambda: f'company_prompts_{request.view_args["company_id"]}')
 def list_company_prompts(company_id):
     """Lista todos los prompts de una empresa."""
     try:
@@ -99,6 +110,7 @@ def list_company_prompts(company_id):
         return jsonify({"error": "Ocurrió un error interno al listar los prompts"}), 500
     
 @company_bp.route('/<int:company_id>/prompts/<int:prompt_id>/content', methods=['GET'])
+@cache.cached(timeout=7200, key_prefix=lambda: f'prompt_content_{request.view_args["company_id"]}_{request.view_args["prompt_id"]}')
 def get_prompt_content(company_id, prompt_id):
     """Obtiene el contenido de un prompt específico de una empresa."""
     try:
@@ -113,6 +125,12 @@ def set_default_prompt(company_id, prompt_id):
     """Establece un prompt como por defecto para una empresa."""
     try:
         CompanyService.set_default_prompt(company_id, prompt_id)
+        
+        # Invalidar caché relacionada con esta empresa y sus prompts
+        cache.delete(f'company_{company_id}')
+        cache.delete(f'company_prompts_{company_id}')
+        # No necesitamos invalidar el contenido porque el contenido no cambia, solo el estado de "default"
+        
         return jsonify({"message": "Prompt establecido como por defecto"}), 200
     except Exception as e:
         print(f"Error inesperado en POST /companies/{company_id}/prompts/{prompt_id}/set_default: {e}")
