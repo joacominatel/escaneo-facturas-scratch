@@ -6,6 +6,7 @@ class Invoice(db.Model):
     __tablename__ = 'invoices'
 
     id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=True)
     filename = db.Column(db.String(255), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='pending')
     preview_data = db.Column(db.JSON, nullable=True)
@@ -24,6 +25,7 @@ class Invoice(db.Model):
             "final_data": self.final_data,
             "agent_response": self.agent_response,
             "file_path": self.file_path,
+            "company_id": self.company_id,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }
