@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask.views import MethodView
 from app.models.invoice import Invoice
 from sqlalchemy import asc, desc, inspect
-from app.core.extensions import db
+from app.utils.get_company_name import get_company_name_from_invoice
 
 invoice_list_bp = Blueprint('invoice_list_bp', __name__)
 
@@ -55,6 +55,8 @@ class InvoiceListAPI(MethodView):
 
         try:
             pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+            for invoice in pagination.items:
+                invoice.company_name = get_company_name_from_invoice(invoice)
         except Exception as e:
             # Loguear el error e
             return jsonify({"error": "Error al consultar la base de datos"}), 500
@@ -69,6 +71,7 @@ class InvoiceListAPI(MethodView):
                     "id": invoice.id,
                     "filename": invoice.filename,
                     "status": invoice.status,
+                    "company_name": invoice.company_name,
                     "created_at": invoice.created_at.isoformat() if invoice.created_at else None,
                 }
                 for invoice in pagination.items
