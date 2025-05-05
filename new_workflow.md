@@ -32,3 +32,14 @@ class InvoiceData(db.Model):
 
 Que se me ocurrio a mi ? Agregar un campo de "campos personalizados" o algo parecido.
 Quiero que primero funcione todo el sql para despues interpretarlo mejor.
+
+## Tabla `companies`
+En principio habria un contexto de empresa, simplemente para que los prompts creados tengan una relacion con algo, y no esten "flotando" sin logica alguna.
+
+La tabla `companies` tendran los campos: ID, name, created_at, updated_at . La logica de los prompts estara en una tabla aparte para, por ejemplo, poder controlar las versiones.
+
+Por ejemplo tabla `company_prompts` con los campos: ID, company_id, version, prompt_path, is_default, created_at . 
+Capaz una company tiene mas de un prompt. Tambien agregariamos el company_id para la tabla invoices.
+
+## View de `invoices_data`
+Para mantener la view usable, propongo mantener los campos actuales y agregar columna extra para los datos personalizados que no son estándar (custom_fields en JSON).
