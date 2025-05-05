@@ -130,3 +130,14 @@ class CompanyService:
         with open(prompt_path, 'r') as file:
             return file.read()
         
+    @staticmethod
+    def set_default_prompt(company_id: int, prompt_id: int):
+        prompt = CompanyPrompt.query.filter_by(company_id=company_id, id=prompt_id).first()
+        if not prompt:
+            raise ValueError(f"No se encontró un prompt para la empresa {company_id} con ID {prompt_id}")
+        # Desmarcar todos los prompts como default
+        CompanyPrompt.query.filter_by(company_id=company_id).update({'is_default': False})
+        # Marcar el prompt seleccionado como default
+        prompt.is_default = True
+        db.session.commit()
+        return prompt

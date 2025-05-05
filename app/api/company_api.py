@@ -107,3 +107,13 @@ def get_prompt_content(company_id, prompt_id):
     except Exception as e:
         print(f"Error inesperado en GET /companies/{company_id}/prompts/{prompt_id}/content: {e}")
         return jsonify({"error": "Ocurrió un error interno al obtener el contenido del prompt"}), 500
+
+@company_bp.route('/<int:company_id>/prompts/<int:prompt_id>/set_default', methods=['POST'])
+def set_default_prompt(company_id, prompt_id):
+    """Establece un prompt como por defecto para una empresa."""
+    try:
+        CompanyService.set_default_prompt(company_id, prompt_id)
+        return jsonify({"message": "Prompt establecido como por defecto"}), 200
+    except Exception as e:
+        print(f"Error inesperado en POST /companies/{company_id}/prompts/{prompt_id}/set_default: {e}")
+        return jsonify({"error": "Ocurrió un error interno al establecer el prompt como por defecto"}), 500
