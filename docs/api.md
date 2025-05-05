@@ -493,6 +493,189 @@ If there's an error querying the database.
 
 ---
 
+## Company & Prompt Management
+
+Endpoints for creating and managing companies and their associated AI prompts.
+
+---
+
+### 11. Create Company
+
+`POST /api/companies/`
+
+**Description:**
+Creates a new company record. As part of the creation process, it automatically:
+1. Creates a dedicated directory for the company's prompts (`app/prompts/companies/<company_id>/`).
+2. Copies the base prompt layout (`app/prompts/prompt_layout.txt`) into the new directory as `prompt_v1.txt`.
+3. Creates an initial `CompanyPrompt` record pointing to this new file, marking it as the default (`is_default=True`) with `version=1`.
+
+**Request Body:**
+- **Content-Type:** `application/json`
+```json
+{
+  "name": "New Company Name"
+}
+```
+
+**Response (Success - 201 Created):**
+Returns the details of the newly created company.
+```json
+{
+  "id": 1,
+  "name": "New Company Name",
+  "created_at": "2024-07-29T10:00:00.123Z",
+  "updated_at": "2024-07-29T10:00:00.123Z"
+  // "prompt_path" is not directly stored on the company model anymore
+}
+```
+
+**Response (Error - 400 Bad Request):**
+- Missing `name` field (`{"error": "El campo 'name' es requerido"}`)
+- `name` is not a non-empty string (`{"error": "El campo 'name' debe ser una cadena no vacía"}`)
+
+**Response (Error - 409 Conflict):**
+If a company with the same name already exists.
+```json
+{
+  "error": "La empresa 'Existing Company Name' ya existe."
+}
+```
+
+**Response (Error - 500 Internal Server Error):**
+- Error during service logic (e.g., base layout file not found) (`{"error": "Error del servicio: [details]"}`)
+- Other unexpected errors (`{"error": "Ocurrió un error interno al crear la empresa"}`)
+
+---
+
+### 12. List Companies
+
+`GET /api/companies/`
+
+**Description:**
+Retrieves a list of all registered companies.
+
+**Response (Success - 200 OK):**
+Returns an array of company objects.
+```json
+[
+  {
+    "id": 1,
+    "name": "Company A",
+    "created_at": "2024-07-29T10:00:00Z",
+    "updated_at": "2024-07-29T10:00:00Z"
+  },
+  {
+    "id": 2,
+    "name": "Company B",
+    "created_at": "2024-07-29T11:15:00Z",
+    "updated_at": "2024-07-29T11:15:00Z"
+  }
+  // ... more companies
+]
+```
+
+**Response (Error - 500 Internal Server Error):**
+If a database query fails.
+```json
+{
+  "error": "Ocurrió un error interno al listar las empresas"
+}
+```
+
+---
+
+### 13. Get Company Details
+
+`GET /api/companies/<int:company_id>`
+
+**Description:**
+Retrieves the details of a specific company by its ID.
+
+**Path Parameters:**
+- `company_id` (integer, required): The ID of the company.
+
+**Response (Success - 200 OK):**
+Returns the company object.
+```json
+{
+  "id": 1,
+  "name": "Company A",
+  "created_at": "2024-07-29T10:00:00Z",
+  "updated_at": "2024-07-29T10:00:00Z"
+}
+```
+
+**Response (Error - 404 Not Found):**
+If the company ID does not exist.
+```json
+{
+  "error": "Empresa no encontrada"
+}
+```
+
+**Response (Error - 500 Internal Server Error):**
+If a database query fails.
+```json
+{
+  "error": "Ocurrió un error interno al obtener la empresa"
+}
+```
+
+---
+
+### 14. Update Company Default Prompt
+
+`PUT /api/companies/<int:company_id>/prompt`
+
+**Description:**
+Updates the default prompt for a specific company. This process involves:
+1. Determining the next available version number (based on the maximum existing version for the company).
+2. Creating a new prompt file (e.g., `prompt_v2.txt`, `prompt_v3.txt`, etc.) in the company's prompt directory (`app/prompts/companies/<company_id>/`) with the provided content.
+3. Updating the database: Marking the *previous* default `CompanyPrompt` record as `is_default=False` and creating a *new* `CompanyPrompt` record for the new file, marking it as `is_default=True` with the incremented version number.
+
+**Path Parameters:**
+- `company_id` (integer, required): The ID of the company whose prompt is being updated.
+
+**Request Body:**
+- **Content-Type:** `application/json`
+```json
+{
+  "prompt_content": "This is the new, updated prompt text for the company..."
+}
+```
+
+**Response (Success - 200 OK):**
+Returns the details of the *newly created* `CompanyPrompt` record, which is now the default.
+```json
+{
+  "id": 5, // ID of the new CompanyPrompt record
+  "company_id": 1,
+  "version": 2, // The new version number
+  "prompt_path": "app/prompts/companies/1/prompt_v2.txt", // Path to the new file
+  "is_default": true,
+  "created_at": "2024-07-29T12:00:00.456Z"
+}
+```
+
+**Response (Error - 400 Bad Request):**
+- Missing `prompt_content` field (`{"error": "El campo 'prompt_content' es requerido en el JSON"}`)
+- `prompt_content` is empty (`{"error": "El contenido del nuevo prompt no puede estar vacío."}`)
+
+**Response (Error - 404 Not Found):**
+If the specified `company_id` does not exist.
+```json
+{
+  "error": "Error del servicio de prompts: Empresa con ID [company_id] no encontrada."
+  // Note: Error message comes from PromptServiceError
+}
+```
+
+**Response (Error - 500 Internal Server Error):**
+- Error during prompt service logic (e.g., file I/O error, database update error) (`{"error": "Error del servicio de prompts: [details]"}`)
+- Other unexpected errors (`{"error": "Ocurrió un error interno al actualizar el prompt"}`)
+
+---
+
 ## 📡 Real-time Updates via WebSockets
 
 The backend uses Flask-SocketIO to push real-time updates to connected clients, reducing the need for polling.
