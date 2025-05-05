@@ -15,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider defaultTheme='light'>
+        <ThemeProvider>
           <WebSocketProvider>
             <div className="min-h-screen bg-background">
               <Navbar />
