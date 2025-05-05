@@ -14,6 +14,7 @@ from app.api.invoice_preview_update_api import invoice_preview_update_bp
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    print(f"DEBUG: DATABASE_URL Cargada: {Config.SQLALCHEMY_DATABASE_URI}")
 
     # Inicializar extensiones
     init_extensions(app)
@@ -29,10 +30,10 @@ def create_app():
         print(f"Cliente desconectado del namespace /invoices: {request.sid}")
 
     # Importar modelos aquí para que Flask-Migrate los detecte
-    from app.models import Invoice
-    from app.models import InvoiceLog
-    from app.models import InvoiceData
-    from app.models import InvoiceStatusSummary
+    from app.models import Invoice, InvoiceLog, Company, CompanyPrompt
+
+    # Views
+    from app.models import InvoiceData, InvoiceStatusSummary
 
     with app.app_context():
         db.create_all()
