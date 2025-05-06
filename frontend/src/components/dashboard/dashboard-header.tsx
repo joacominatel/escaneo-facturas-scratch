@@ -10,7 +10,7 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ heading, text, children, className }: DashboardHeaderProps) {
   return (
-    <div className={cn("flex flex-col gap-2 pb-5", className)}>
+    <div className={cn("flex flex-col gap-2 pb-5 border-b border-purple-200 dark:border-purple-700/50", className)}>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="grid gap-1">
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{heading}</h1>

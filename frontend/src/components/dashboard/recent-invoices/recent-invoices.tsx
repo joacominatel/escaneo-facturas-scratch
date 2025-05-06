@@ -223,7 +223,7 @@ export default function RecentInvoices() {
 
     return (
         <div className="lg:col-span-3">
-            <Card>
+            <Card className="border border-purple-200 dark:border-purple-700/50 shadow-lg bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <div>
                         <CardTitle className="text-lg font-medium">

@@ -74,7 +74,7 @@ export function InvoiceCharts({ className }: InvoiceChartsProps) {
       transition={{ duration: 0.4, delay: 0.1 }}
       className={cn("", className)}
     >
-      <Card className="h-full flex flex-col">
+      <Card className="h-full flex flex-col border border-purple-200 dark:border-purple-700/50 shadow-lg bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm">
         <CardHeader>
           <CardTitle>Distribución de Estados de Facturas</CardTitle>
           <CardDescription>Desglose actual de facturas por estado</CardDescription>

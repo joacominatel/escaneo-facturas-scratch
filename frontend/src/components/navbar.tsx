@@ -67,9 +67,8 @@ export function Navbar({ className }: NavbarProps) {
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
         scrolled
-          ? "bg-background/90 backdrop-blur-md shadow-sm border-b border-border/50"
-          : "bg-background/70 backdrop-blur-sm",
-        "border-b border-transparent", // Base border for layout consistency
+          ? "bg-white/80 dark:bg-slate-900/75 backdrop-blur-md shadow-md border-b border-purple-200 dark:border-purple-700/50"
+          : "bg-white/70 dark:bg-slate-900/60 backdrop-blur-sm",
         className
       )}
     >
