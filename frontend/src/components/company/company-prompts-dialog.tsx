@@ -90,7 +90,7 @@ function UpdatePromptForm({ companyId, initialContent, isLoadingContent, content
                             value={newContent}
                             onChange={(e) => setNewContent(e.target.value)}
                             rows={15}
-                            className="col-span-3 text-xs"
+                            className="col-span-3 text-xs max-h-96"
                             required
                             disabled={isUpdating || isLoadingContent}
                         />
