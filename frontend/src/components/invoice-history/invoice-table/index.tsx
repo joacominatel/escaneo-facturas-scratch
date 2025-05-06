@@ -36,7 +36,6 @@ export function InvoiceTable() {
         setRowSelection,
         setSearchTerm,
         setSelectedStatuses,
-        fetchData,
         openDetailsModal,
         resetFilters,
         setIsDetailModalOpen
