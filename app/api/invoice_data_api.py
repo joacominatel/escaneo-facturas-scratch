@@ -40,7 +40,8 @@ class InvoiceDataAPI(MethodView):
                 "payment_terms": inv.payment_terms,
                 "advertising_numbers": advertising_numbers,
                 "items": inv.items,
-                "custom_fields": inv.custom_fields
+                "custom_fields": inv.custom_fields,
+                "company_id": inv.company_id
             })
 
         return jsonify({
