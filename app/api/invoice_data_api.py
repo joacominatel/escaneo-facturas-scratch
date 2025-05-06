@@ -39,7 +39,8 @@ class InvoiceDataAPI(MethodView):
                 "currency": inv.currency,
                 "payment_terms": inv.payment_terms,
                 "advertising_numbers": advertising_numbers,
-                "items": inv.items
+                "items": inv.items,
+                "custom_fields": inv.custom_fields
             })
 
         return jsonify({
