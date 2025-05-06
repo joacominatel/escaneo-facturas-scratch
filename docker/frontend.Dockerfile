@@ -4,22 +4,32 @@ FROM node:22-slim AS builder
 # Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json (or yarn.lock)
-COPY frontend/package.json frontend/package-lock.json* ./
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
 
-# Install dependencies / force install cause react 19
-RUN npm install --force 
+# Copy package.json and pnpm-lock.yaml
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the application code
 COPY frontend/ ./
 
 # Build the Next.js application
-RUN npm run build
+RUN pnpm run build
 
 # Stage 2: Production image
 FROM node:22-slim
 
 WORKDIR /app
+
+# Set COREPACK_HOME to a writable location within the app for corepack's cache
+ENV COREPACK_HOME=/app/.corepack
+
+# Enable corepack to make pnpm available
+RUN corepack enable
 
 # Crear un usuario y grupo no root
 # Usamos 'node' como usuario y grupo ya que la imagen base node lo suele incluir
@@ -44,4 +54,4 @@ USER nextjs
 EXPOSE 3000
 
 # Command to run the application
-CMD ["npm", "start"] 
+CMD ["pnpm", "start"] 
