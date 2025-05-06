@@ -72,11 +72,11 @@ export function InvoiceTable() {
 
     // Obtener datos de filas seleccionadas para BulkActionBar (sin cambios)
     const selectedRowsData = useMemo(() => {
-        console.log("[InvoiceTable Debug] Recalculating selectedRowsData. Current rowSelection:", rowSelection);
+        // console.log("[InvoiceTable Debug] Recalculating selectedRowsData. Current rowSelection:", rowSelection);
         const selectedRows = table.getSelectedRowModel().rows;
-        console.log("[InvoiceTable Debug] selectedRows from table model:", selectedRows);
+        // console.log("[InvoiceTable Debug] selectedRows from table model:", selectedRows);
         const data = selectedRows.map(row => row.original);
-        console.log("[InvoiceTable Debug] Mapped selectedRowsData:", data);
+        // console.log("[InvoiceTable Debug] Mapped selectedRowsData:", data);
         return data;
     }, [rowSelection, table]);
 

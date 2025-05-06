@@ -42,12 +42,6 @@ export function useInvoiceTable() {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-    // --- Debugging: Log rowSelection changes ---
-    useEffect(() => {
-        console.log('[useInvoiceTable Debug] rowSelection changed:', rowSelection);
-    }, [rowSelection]);
-    // --- End Debugging ---
-
     // --- Estados del WebSocket (desde Contexto) ---
     const {
         isConnected: isWsConnectedState,
