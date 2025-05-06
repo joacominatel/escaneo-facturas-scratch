@@ -23,6 +23,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { InvoiceStatus, InvoiceListItem } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useLocalStorage } from "@/hooks/use-local-storage";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { InvoiceActions } from "@/components/invoice-history/invoice-actions";
+
+// Clave para localStorage
+const LOCALSTORAGE_KEY_RECENT_LIMIT = 'recentInvoicesLimit';
 
 // Helper function to get badge variant based on status
 const getStatusVariant = (
@@ -73,6 +85,12 @@ export default function RecentInvoices() {
     const [highlightedInvoiceId, setHighlightedInvoiceId] = useState<number | null>(null);
     const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    // --- Estado para el límite --- 
+    const [limit, setLimit] = useLocalStorage<number>(
+        LOCALSTORAGE_KEY_RECENT_LIMIT,
+        5 // Valor inicial
+    );
+
     // --- Estado WebSocket desde el Contexto ---
     const { 
         isConnected: isWsConnectedState, 
@@ -89,7 +107,8 @@ export default function RecentInvoices() {
         }
         setError(null);
         try {
-            const fetchedInvoices = await fetchRecentInvoices(5);
+            // Usar el límite del estado
+            const fetchedInvoices = await fetchRecentInvoices(limit);
             setInvoices(fetchedInvoices);
         } catch (err) {
             console.error("Error fetching recent invoices:", err);
@@ -98,7 +117,7 @@ export default function RecentInvoices() {
         } finally {
             setIsLoading(false);
         }
-    }, [invoices.length]);
+    }, [invoices.length, limit]);
 
     useEffect(() => {
         loadRecentInvoices();
@@ -168,6 +187,16 @@ export default function RecentInvoices() {
         }
     }, [wsConnectError]);
 
+    // --- Handler para "Ver Detalles" (Placeholder) ---
+    const handleViewDetails = (invoiceId: number) => {
+        // Por ahora, solo mostramos un toast. Podríamos redirigir si fuera necesario.
+        toast.info("Acción no disponible aquí", {
+             description: `Para ver detalles de la factura ${invoiceId}, ve al Historial.`
+         });
+        // Ejemplo de redirección (necesitaría importar useRouter):
+        // router.push(`/history?search=${invoiceId}`); 
+    };
+
     // --- Renderizado --- 
     const renderConnectionStatus = () => {
         let color = "bg-gray-400";
@@ -200,9 +229,23 @@ export default function RecentInvoices() {
                         <CardTitle className="text-lg font-medium">
                             Facturas Recientes
                         </CardTitle>
-                        <CardDescription>Últimas 5 facturas recibidas.</CardDescription>
+                        <CardDescription>Últimas {limit} facturas recibidas.</CardDescription>
                     </div>
                     <div className="flex items-center space-x-4">
+                        {/* Selector de Límite */}
+                         <Select 
+                             value={String(limit)} 
+                             onValueChange={(value) => setLimit(Number(value))}
+                        >
+                            <SelectTrigger className="w-[80px] h-8 text-xs" aria-label="Seleccionar cantidad">
+                                <SelectValue placeholder="Límite" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="3">3</SelectItem>
+                                <SelectItem value="5">5</SelectItem>
+                                <SelectItem value="10">10</SelectItem>
+                            </SelectContent>
+                        </Select>
                         {renderConnectionStatus()}
                     </div>
                 </CardHeader>
@@ -254,6 +297,13 @@ export default function RecentInvoices() {
                                                 addSuffix: true,
                                                 locale: es,
                                             })}
+                                        </TableCell>
+                                        {/* Celda para Acciones */}
+                                        <TableCell className="text-right py-1 pr-1 w-[40px]"> {/* Ajustar padding/width */} 
+                                             <InvoiceActions 
+                                                 invoice={invoice} 
+                                                 onViewDetails={() => handleViewDetails(invoice.id)}
+                                             />
                                         </TableCell>
                                     </TableRow>
                                 ))}
