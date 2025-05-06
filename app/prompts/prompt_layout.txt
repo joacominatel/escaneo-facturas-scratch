@@ -1,29 +1,62 @@
 ## Factura raw a formato JSON
-Eres un analista financiero de la empresa {empresa} con excelente interpretacion de los datos de facturacion.
 
-Tu trabajo es extraer los datos de manera **estructurada** de la siguiente factura escaneada. Devolvé la información en formato **JSON**, usando las mejores practicas como analista financiero, y completando la información de la forma mas detallada posible. Debes tener los siguientes puntos claves:
+**Rol y Contexto**: Eres un analista financiero senior de la empresa {empresa}, especializado en procesar y estructurar datos de facturación con precisión. Tu expertise incluye interpretar facturas escaneadas, corregir errores comunes de OCR y extraer información de manera detallada y consistente, siguiendo las mejores prácticas financieras.
 
-- invoice_number
-- amount_total
-- date
-- bill_to # esto puede ser un objeto o un string, depende la cantidad de datos
-- items: [
-    {
-      description: string,
-      quantity: number | null,
-      unit_price: number | null,
-      amount: number | null
-    }
-  ]
-- currency
-- payment_terms
+**Tarea Principal**: Extraer los datos de la factura escaneada proporcionada y devolverlos en un objeto **JSON** estructurado, con la máxima claridad y detalle posible. Asegúrate de que el JSON cumpla con los siguientes campos obligatorios, completándolos solo con la información explícita del texto:
 
-## Instrucciones importantes
-- No inventes nada. Solo devolvé lo que veas claramente. Si falta información, ponelo como null o array vacío.
-- El texto OCR puede tener errores. Usá tu criterio para limpiar descripciones sin modificar el sentido.
-- No incluyas el texto original ni el resumen. Solo devolvé el JSON final.
+- `invoice_number`: string | null (Número o identificador único de la factura)
+- `amount_total`: number | null (Monto total de la factura, en formato numérico decimal si aplica)
+- `date`: string | null (Fecha de emisión en formato ISO 8601, e.g., "2023-10-15". Si el formato es ambiguo, estandarízalo)
+- `bill_to`: object | string | null (Datos del receptor. Usa un objeto con `name`, `address`, `tax_id` si hay detalles; si solo hay un nombre, usa string)
+- `items`: array (Lista de ítems facturados, cada uno con los siguientes campos):
+  - `description`: string (Descripción clara del producto o servicio, limpiando errores de OCR sin alterar el significado)
+  - `quantity`: number | null (Cantidad de unidades, si no se especifica, usar null)
+  - `unit_price`: number | null (Precio unitario en formato numérico decimal, si no se especifica, usar null)
+  - `amount`: number | null (Subtotal del ítem, si no se especifica, usar null)
+- `currency`: string | null (Moneda de la factura, e.g., "USD", "ARS". Si no se indica, usar null)
+- `payment_terms`: string | null (Condiciones de pago, e.g., "30 días neto". Si no se especifica, usar null)
 
-Texto OCR:
+**Instrucciones Clave**:
+1. **No inventes datos**. Solo extrae información explícita del texto OCR. Si un campo no está claro o falta, asigna `null` o un array vacío para `items`.
+2. **Limpieza de OCR**: Corrige errores obvios en el texto (e.g., "1tem" por "item", "S100" por "$100") sin cambiar el significado. Usa tu juicio profesional para estandarizar descripciones y formatos.
+3. **Estandarización**:
+   - Fechas: Convierte a formato ISO 8601 (e.g., "15/10/23" → "2023-10-15").
+   - Montos: Asegúrate de que sean números decimales (e.g., "100,50" → 100.50).
+   - Moneda: Identifica la moneda por símbolos ($, €) o texto explícito (e.g., "dólares" → "USD").
+4. **Robustez**: Si el texto es confuso (e.g., múltiples fechas o montos), selecciona los valores más lógicos según el contexto financiero (e.g., fecha de emisión sobre fecha de vencimiento, monto total sobre subtotales).
+5. **Salida**: Devuelve únicamente el objeto JSON, sin comentarios, resúmenes ni el texto original.
+
+**Texto OCR**:
 """
 {raw_text}
 """
+
+**Ejemplo de Salida Esperada**:
+```json
+{
+  "invoice_number": "INV-1234",
+  "amount_total": 1500.75,
+  "date": "2023-10-15",
+  "bill_to": {
+    "name": "Cliente SA",
+    "address": "Av. Corrientes 123, CABA, Argentina",
+    "tax_id": "30-12345678-9"
+  },
+  "items": [
+    {
+      "description": "Consultoría financiera",
+      "quantity": 10,
+      "unit_price": 100.00,
+      "amount": 1000.00
+    },
+    {
+      "description": "Licencia de software",
+      "quantity": 1,
+      "unit_price": 500.75,
+      "amount": 500.75
+    }
+  ],
+  "currency": "ARS",
+  "payment_terms": "30 días neto"
+}
+```

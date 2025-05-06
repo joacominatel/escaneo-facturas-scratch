@@ -22,7 +22,8 @@ Instrucciones importantes:
 - **Advertising Numbers (OP numbers)**: Extraé cualquier número de operación que comience con "OP", incluyendo aquellos que estén pegados entre sí con "_" o "-", por ejemplo:
   - "OP123456" es un OP válido.
   - "OP123456_78901" significa dos OPs: "OP123456" y "OP78901".
-  - "OPColaboracion" **NO** ES VALIDO. Los numeros de OP son solo numeros. No relaciones las palabras y/o letras con los OP
+  - "OPColaboracion" **NO ES VALIDO**. Los numeros de OP son solo numeros. No relaciones las palabras y/o letras con los OP
+- Los OP suelen tener maximo 6 o 7 numeros. Si detectas un OP de 12 numeros (`OP123123456456` por ejemplo), en realidad son DOS distintos. Siguiendo el ejemplo deberia quedar: OP123123, OP456456 .
 - Si un ítem no tiene ningún OP, omití completamente el campo `advertising_numbers` para ese ítem.
 - No inventes nada. Solo devolvé lo que veas claramente. Si falta información, ponelo como null o array vacío.
 - El texto OCR puede tener errores. Usá tu criterio para limpiar descripciones sin modificar el sentido.
