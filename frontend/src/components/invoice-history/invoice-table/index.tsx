@@ -37,14 +37,16 @@ export function InvoiceTable() {
         setSearchTerm,
         setSelectedStatuses,
         fetchData,
+        openDetailsModal,
         resetFilters,
         setIsDetailModalOpen
     } = useInvoiceTable();
 
     // Definir columnas (sin cambios)
-    const columns = useMemo(() => getInvoiceTableColumns(
-        () => fetchData(true)
-    ), [fetchData]);
+  const columns = useMemo(
+    () => getInvoiceTableColumns(openDetailsModal),
+    [openDetailsModal]
+  );
 
     // Instancia de la tabla (sin cambios)
     const table = useReactTable({
