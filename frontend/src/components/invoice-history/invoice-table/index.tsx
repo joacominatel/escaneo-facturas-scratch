@@ -38,15 +38,13 @@ export function InvoiceTable() {
         setSelectedStatuses,
         fetchData,
         resetFilters,
-        openDetailsModal,
         setIsDetailModalOpen
     } = useInvoiceTable();
 
     // Definir columnas (sin cambios)
     const columns = useMemo(() => getInvoiceTableColumns(
-        () => fetchData(true),
-        openDetailsModal
-    ), [fetchData, openDetailsModal]);
+        () => fetchData(true)
+    ), [fetchData]);
 
     // Instancia de la tabla (sin cambios)
     const table = useReactTable({
@@ -164,7 +162,6 @@ export function InvoiceTable() {
             {/* Barra de Acciones en Masa (sin cambios) */}
             <BulkActionBar
                 selectedInvoices={selectedRowsData}
-                onActionComplete={() => fetchData(true)}
                 onClearSelection={() => setRowSelection({})} 
             />
 

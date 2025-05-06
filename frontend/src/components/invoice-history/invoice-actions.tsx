@@ -20,11 +20,10 @@ import { RejectDialog } from './reject-dialog'
 
 interface InvoiceActionsProps {
   invoice: InvoiceListItem
-  onActionComplete: () => void // Para refrescar la lista después de una acción
   onViewDetails: () => void; // <--- Añadir la nueva prop
 }
 
-export function InvoiceActions({ invoice, onActionComplete, onViewDetails }: InvoiceActionsProps) {
+export function InvoiceActions({ invoice, onViewDetails }: InvoiceActionsProps) {
   const router = useRouter()
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const {

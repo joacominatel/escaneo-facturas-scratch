@@ -12,7 +12,6 @@ type InvoiceCellContext = CellContext<InvoiceListItem, unknown>;
 
 // Definición de las columnas para la tabla de facturas
 export const getInvoiceTableColumns = (
-    onActionComplete: () => void, // Callback para refrescar lista
     onViewDetails: (invoiceId: number) => void // Callback para abrir modal
 ): ColumnDef<InvoiceListItem>[] => [
     {
@@ -103,7 +102,6 @@ export const getInvoiceTableColumns = (
             <div className="text-right">
                 <InvoiceActions
                     invoice={row.original}
-                    onActionComplete={onActionComplete}
                     onViewDetails={() => onViewDetails(row.original.id)}
                 />
             </div>

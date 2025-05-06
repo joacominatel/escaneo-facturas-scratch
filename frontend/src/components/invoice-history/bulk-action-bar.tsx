@@ -17,11 +17,10 @@ const allowedBulkActions: Partial<Record<InvoiceStatus, Array<"confirm" | "retry
 
 interface BulkActionBarProps {
   selectedInvoices: InvoiceListItem[];
-  onActionComplete: () => void;
   onClearSelection: () => void;
 }
 
-export function BulkActionBar({ selectedInvoices, onActionComplete, onClearSelection }: BulkActionBarProps) {
+export function BulkActionBar({ selectedInvoices, onClearSelection }: BulkActionBarProps) {
   const { confirmInvoice, retryInvoice, isConfirming, isRetrying } = useInvoiceActions()
   const [isProcessingBulkAction, setIsProcessingBulkAction] = useState(false)
 
