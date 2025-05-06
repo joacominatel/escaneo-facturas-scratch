@@ -20,8 +20,14 @@ export function ThemeProvider({
   children,
   defaultTheme = "system",
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme)
-
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window !== "undefined") {
+      const storedTheme = localStorage.getItem("theme") as Theme | null
+      return storedTheme || defaultTheme
+    }
+    return defaultTheme
+  })
+  
   useEffect(() => {
     const root = window.document.documentElement
     root.classList.remove("light", "dark")
