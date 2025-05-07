@@ -17,6 +17,13 @@ class InvoiceRetryAPI(MethodView):
         if invoice.status not in ["failed", "rejected"]:
             return jsonify({"error": f"Solo se pueden reintentar facturas fallidas o rechazadas. Estado actual: {invoice.status}"}), 400
 
+        # Obtener la última razón de rechazo, si existe
+        rejection_reason = None
+        last_rejection_log = InvoiceLog.query.filter_by(invoice_id=invoice_id, event="rejected").order_by(InvoiceLog.id.desc()).first()
+        if last_rejection_log and last_rejection_log.details:
+            rejection_reason = last_rejection_log.details
+            print(f"Reintentando factura {invoice_id} con razón de rechazo anterior: {rejection_reason}")
+
         # Cambio de estado
         invoice.status = "processing"
         db.session.add(invoice)
@@ -25,13 +32,13 @@ class InvoiceRetryAPI(MethodView):
         db.session.add(InvoiceLog(
             invoice_id=invoice.id,
             event="retry_requested",
-            details="Reintento manual solicitado."
+            details=f"Reintento manual solicitado.{' Con contexto de rechazo anterior.' if rejection_reason else ''}"
         ))
 
         db.session.commit()
 
-        # Encolamos nuevamente en Celery
-        process_invoice_task.delay(invoice.id)
+        # Encolamos nuevamente en Celery, pasando la razón del rechazo si existe
+        process_invoice_task.delay(invoice.id, rejection_reason=rejection_reason)
 
         return jsonify({
             "invoice_id": invoice.id,

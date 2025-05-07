@@ -144,36 +144,46 @@ class OpenAIService:
             raise
 
     @retry_with_backoff(max_tries=3)
-    def extract_structured_data(self, raw_text: str, prompt_path: str | None = None) -> dict:
-        """Extrae datos estructurados usando un prompt específico o el por defecto."""
-        # ¡RECORDATORIO: Ajustar la firma en el código real para incluir invoice_id! 
-        invoice_id = getattr(self, '_current_invoice_id', None) # Truco temporal
+    def extract_structured_data(self, raw_text: str, prompt_path: str | None = None, rejection_reason: str | None = None, invoice_id: int | None = None) -> dict:
+        """Extrae datos estructurados usando un prompt específico o el por defecto, y opcionalmente una razón de rechazo."""
+        # invoice_id ahora se pasa como parámetro, eliminamos el truco getattr
+        # invoice_id = getattr(self, '_current_invoice_id', None) 
         
         process_name = "extract_structured_data"
         text_length = len(raw_text)
         effective_prompt_path = prompt_path or "default"
         log_extra = {"model": self.model, "text_length": text_length, "prompt_path": effective_prompt_path}
+        if rejection_reason:
+            log_extra["rejection_reason_provided"] = True
+            log_extra["rejection_reason_length"] = len(rejection_reason)
+
         LogService.process_start(invoice_id, process_name, "Iniciando extracción de datos estructurados", extra=log_extra)
         start_time = time.time()
 
         # Truncar texto si es demasiado largo
         if len(raw_text) > 20000:
             raw_text = raw_text[:20000] + "..."
-            LogService.warning(invoice_id, "text_truncated", f"Texto truncado a 20000 caracteres para extracción.", LogCategory.API, extra={"original_length": text_length, "prompt_path": effective_prompt_path})
+            LogService.warning(invoice_id, "text_truncated", f"Texto truncado a 20000 caracteres para extracción.", LogCategory.API, extra=log_extra | {"original_length": text_length})
 
         # Cargar el template del prompt adecuado
         try:
             extract_data_prompt_template = self._load_extract_prompt(prompt_path)
         except Exception as e:
-             # Manejar error de carga de prompt (loguear, posible fallback?)
-             print(f"Error crítico al cargar el prompt ({prompt_path or 'default'}), usando un prompt básico.")
-             # Fallback muy básico si todo falla
-             extract_data_prompt_template = "Extrae los siguientes campos del texto de la factura en formato JSON: invoice_number, amount_total, date.\n\nTexto:\n{raw_text}"
+            error_msg = f"Error crítico al cargar el prompt ({prompt_path or 'default'}), usando un prompt básico: {e}"
+            LogService.error(invoice_id, "extract_prompt_load_critical_failure", error_msg, LogCategory.SYSTEM, extra=log_extra, exc_info=True)
+            # Fallback muy básico si todo falla
+            extract_data_prompt_template = "Extrae los siguientes campos del texto de la factura en formato JSON: invoice_number, amount_total, date.\n\nTexto:\n{raw_text}"
         
+        final_prompt_template_for_llm = extract_data_prompt_template
+        if rejection_reason:
+            rejection_context = f"Contexto importante de un intento anterior de procesamiento: El usuario rechazó el resultado anterior con la siguiente razón: '{rejection_reason}'. Por favor, presta especial atención a esta corrección al procesar la factura.\n\n"
+            final_prompt_template_for_llm = rejection_context + extract_data_prompt_template
+            LogService.info(invoice_id, "rejection_context_added_to_prompt", "Contexto de rechazo anterior añadido al prompt.", LogCategory.API, extra=log_extra)
+
         # Construir el prompt final
-        prompt_content = extract_data_prompt_template.replace("{raw_text}", raw_text.strip())
+        prompt_content = final_prompt_template_for_llm.replace("{raw_text}", raw_text.strip())
         
-        # Verificar caché usando el contenido del prompt actual
+        # Verificar caché usando el contenido del prompt actual (que ahora incluye la razón)
         cache_hit = False # Flag para saber si usamos caché
         if self.cache_enabled:
             cache_key = self._get_cache_key(prompt_content, self.model)
@@ -257,16 +267,38 @@ class OpenAIService:
                 print(error_msg)
                 raise
 
-    def extract_structured_data_and_raw(self, raw_text: str, invoice_id: int | None = None, prompt_path: str | None = None) -> tuple[dict, str]:
-        """Extrae datos estructurados (usando prompt específico) y resumen."""
-        # Pasar el invoice_id a los métodos subyacentes
-        # Usamos un truco temporal para pasar el ID sin cambiar explícitamente la firma en todos lados
-        self._current_invoice_id = invoice_id
+    def extract_structured_data_and_raw(self, raw_text: str, invoice_id: int | None = None, prompt_path: str | None = None, rejection_reason: str | None = None) -> tuple[dict, str]:
+        """Extrae datos estructurados (usando prompt específico y razón de rechazo opcional) y resumen."""
+        # Ya no usamos _current_invoice_id porque invoice_id se pasa directamente
+        # self._current_invoice_id = invoice_id
         try:
-            structured_data = self.extract_structured_data(raw_text, prompt_path=prompt_path)
-            # El resumen no cambia, usa el prompt de resumen fijo
-            raw_response = self.summarize_invoice_text(raw_text)
+            # Pasar invoice_id y rejection_reason a extract_structured_data
+            structured_data = self.extract_structured_data(raw_text, prompt_path=prompt_path, rejection_reason=rejection_reason, invoice_id=invoice_id)
+            # El resumen no cambia, usa el prompt de resumen fijo. Pasar invoice_id.
+            # Para esto, summarize_invoice_text también necesita aceptar invoice_id. 
+            # Por ahora, mantendremos el truco para summarize_invoice_text o asumiremos que LogService lo maneja bien con None.
+            # Modifiquemos también summarize_invoice_text para que acepte invoice_id explícitamente para consistencia.
+            
+            # Temporalmente para que funcione, ya que summarize_invoice_text no fue modificado en este paso:
+            # Si no, tendríamos que editar summarize_invoice_text para aceptar invoice_id y quitar el getattr.
+            # Por ahora, reinstauramos el truco SOLO para summarize_invoice_text si invoice_id está presente.
+            original_current_invoice_id = getattr(self, '_current_invoice_id', None)
+            if invoice_id is not None:
+                 self._current_invoice_id = invoice_id
+
+            raw_response = self.summarize_invoice_text(raw_text) # Aún usa getattr internamente por ahora
+
+            if invoice_id is not None:
+                # Restaurar o eliminar _current_invoice_id
+                if original_current_invoice_id is not None:
+                    self._current_invoice_id = original_current_invoice_id
+                else:
+                    if hasattr(self, '_current_invoice_id'): # Solo si se estableció en este bloque
+                         delattr(self, '_current_invoice_id')
+
             return structured_data, raw_response
         finally:
-            # Limpiar el ID temporal
-            delattr(self, '_current_invoice_id')
+            # Limpiar el ID temporal si se estableció en la rama de summarize y no originalmente
+            if invoice_id is not None and original_current_invoice_id is None and hasattr(self, '_current_invoice_id'):
+                delattr(self, '_current_invoice_id')
+            # pass # Ya no necesitamos delattr(self, '_current_invoice_id') aquí porque se gestiona arriba

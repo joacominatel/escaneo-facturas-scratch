@@ -75,7 +75,7 @@ def db_session_context_with_event(namespace='/invoices', event_name='invoice_sta
         session.close()
 
 @celery.task(name="process_invoice_task", bind=True, rate_limit="2/m", autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 3})
-def process_invoice_task(self, invoice_id):
+def process_invoice_task(self, invoice_id, rejection_reason: str | None = None):
     """
     Procesa una factura extrayendo texto con OCR y luego utilizando OpenAI para estructurar los datos.
     
@@ -155,10 +155,12 @@ def process_invoice_task(self, invoice_id):
             # 2. OpenAI
             openai_start_time = time.time()
             openai_service = OpenAIService(cache_enabled=True)
-            # Pasar el prompt_path encontrado (o None)
+            # Pasar el prompt_path encontrado (o None) y la razón de rechazo
             structured_data, raw_response = openai_service.extract_structured_data_and_raw(
                 raw_text, 
-                prompt_path=target_prompt_path 
+                invoice_id=invoice_id, # Aseguramos que el invoice_id se pasa aquí explícitamente
+                prompt_path=target_prompt_path, 
+                rejection_reason=rejection_reason
             )
             openai_time = time.time() - openai_start_time
             
