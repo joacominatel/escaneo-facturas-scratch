@@ -3,11 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Trash2, PlusCircle, X as CloseIcon } from "lucide-react";
+import { Trash2, PlusCircle } from "lucide-react";
 import type { ProcessedInvoiceItem } from "@/lib/api/types";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
-import { Badge } from '../ui/badge'; // Asegúrate que la importación sea correcta
 
 interface EditableInvoiceItemsTableProps {
     items: ProcessedInvoiceItem[];

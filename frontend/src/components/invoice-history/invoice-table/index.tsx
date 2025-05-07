@@ -78,7 +78,8 @@ export function InvoiceTable() {
         const data = selectedRows.map(row => row.original);
         // console.log("[InvoiceTable Debug] Mapped selectedRowsData:", data);
         return data;
-    }, [rowSelection, table]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [rowSelection, table]);
 
     return (
         <div className="space-y-4 relative pb-20"> {/* Padding para BulkActionBar */}
