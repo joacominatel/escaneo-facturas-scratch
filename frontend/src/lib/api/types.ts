@@ -87,6 +87,27 @@ export interface FetchInvoiceHistoryOptions {
   sortOrder?: "asc" | "desc"
 }
 
+// --- Tipos para Invoice Trends --- 
+export interface InvoiceTrendPoint {
+  date: string; // YYYY-MM-DD
+  count: number;
+}
+
+export interface InvoiceTrendsResponse {
+  trend_data: InvoiceTrendPoint[];
+  status_queried: string;
+  start_date: string;
+  end_date: string;
+}
+
+export interface FetchInvoiceTrendsOptions {
+  days_ago?: number;
+  start_date?: string; // YYYY-MM-DD
+  end_date?: string;   // YYYY-MM-DD
+  status?: InvoiceStatus | string; // Permitir cualquier string por si hay estados custom
+}
+// --- Fin Tipos para Invoice Trends ---
+
 /**
  * Representa una empresa en el sistema.
  */

@@ -7,16 +7,35 @@ import {
   ProcessedInvoiceData,
   SimpleSuccessResponse,
   FetchInvoiceHistoryOptions,
+  InvoiceTrendsResponse,
+  FetchInvoiceTrendsOptions,
 } from './types'
+
+export interface InvoiceStatusSummaryOptions {
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+}
 
 /**
  * Fetches the summary of invoice statuses
+ * @param options Optional start and end dates for filtering
  * @returns Promise with status counts
  */
-export async function fetchInvoiceStatusSummary(): Promise<InvoiceStatusSummary> {
+export async function fetchInvoiceStatusSummary(options?: InvoiceStatusSummaryOptions): Promise<InvoiceStatusSummary> {
   try {
+    let url = '/api/invoices/status-summary/';
+    if (options && (options.startDate || options.endDate)) {
+      const params = new URLSearchParams();
+      if (options.startDate) {
+        params.append('start_date', options.startDate);
+      }
+      if (options.endDate) {
+        params.append('end_date', options.endDate);
+      }
+      url += `?${params.toString()}`;
+    }
     // The endpoint returns { summary: { ... } }
-    return await apiRequest<InvoiceStatusSummary>('/api/invoices/status-summary/')
+    return await apiRequest<InvoiceStatusSummary>(url);
   } catch (error) {
     console.error("Error fetching invoice status summary:", error)
     // Provide a default/empty summary on error to avoid crashing components
@@ -34,12 +53,13 @@ export async function fetchInvoiceStatusSummary(): Promise<InvoiceStatusSummary>
  * The previous implementation generated fake monthly data.
  * This now correctly returns the data from the `/api/invoices/status-summary/` endpoint.
  * If historical chart data is needed, a different API endpoint is required.
+ * @param options Optional start and end dates for filtering
  * @returns Promise with status summary data
  */
-export async function fetchInvoiceChartData(): Promise<InvoiceStatusSummary> {
+export async function fetchInvoiceChartData(options?: InvoiceStatusSummaryOptions): Promise<InvoiceStatusSummary> {
   // Re-uses the status summary endpoint as per the original code's target URL
   // Consider renaming this function if it's only used for the summary
-  return fetchInvoiceStatusSummary()
+  return fetchInvoiceStatusSummary(options);
 }
 
 /**
@@ -227,6 +247,47 @@ export async function fetchInvoiceHistory(
     console.error("Error fetching invoice history:", error)
     // Return an empty pagination structure on error
     return { page, per_page: perPage, total: 0, pages: 0, invoices: [] }
+  }
+}
+
+/**
+ * Fetches invoice trend data (e.g., count of processed invoices per day).
+ * @param options Options for fetching trend data (days_ago, start_date, end_date, status)
+ * @returns Promise with trend data
+ */
+export async function fetchInvoiceTrends(
+  options?: FetchInvoiceTrendsOptions
+): Promise<InvoiceTrendsResponse> {
+  try {
+    let url = '/api/invoices/trends/';
+    if (options) {
+      const params = new URLSearchParams();
+      if (options.days_ago) {
+        params.append('days_ago', String(options.days_ago));
+      }
+      if (options.start_date) {
+        params.append('start_date', options.start_date);
+      }
+      if (options.end_date) {
+        params.append('end_date', options.end_date);
+      }
+      if (options.status) {
+        params.append('status', options.status);
+      }
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+    }
+    return await apiRequest<InvoiceTrendsResponse>(url);
+  } catch (error) {
+    console.error("Error fetching invoice trends:", error);
+    // Devolver una estructura vacía o por defecto en caso de error
+    return {
+      trend_data: [],
+      status_queried: options?.status || 'unknown',
+      start_date: '',
+      end_date: '',
+    };
   }
 }
 
