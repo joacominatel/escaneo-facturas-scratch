@@ -374,7 +374,6 @@ Retrieves detailed, structured data specifically from invoices that have been fu
 **Query Parameters:**
 - `page` (integer, optional, default: 1): The page number to retrieve.
 - `per_page` (integer, optional, default: 10): Number of processed invoice data entries per page.
-- `op_number` (string, optional): Filter results to include only invoices containing this specific `op_number` (advertising number) within their items.
 
 **Response (Success - 200 OK):**
 Returns a paginated list of structured invoice data.
@@ -393,20 +392,14 @@ Returns a paginated list of structured invoice data.
       "bill_to": "Customer A",
       "currency": "EUR",
       "payment_terms": "NET 30",
-      "advertising_numbers": [ // Unique list aggregated from items
-        "OP123",
-        "OP456"
-      ],
       "items": [
         {
           "description": "Service X",
           "amount": 1000.00,
-          "advertising_numbers": ["OP123"]
         },
         {
           "description": "Service Y",
           "amount": 500.50,
-          "advertising_numbers": ["OP456"]
         }
       ]
     }
