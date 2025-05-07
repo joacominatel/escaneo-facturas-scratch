@@ -8,7 +8,6 @@ class InvoiceDataAPI(MethodView):
     def get(self):
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 10))
-        op_number = request.args.get('op_number')
 
         query = InvoiceData.query
 
@@ -16,20 +15,6 @@ class InvoiceDataAPI(MethodView):
 
         result = []
         for inv in invoices.items:
-            advertising_numbers = set()
-
-            if inv.items:
-                for item in inv.items:
-                    ops = item.get('advertising_numbers', [])
-                    advertising_numbers.update(ops)
-
-            advertising_numbers = list(advertising_numbers)
-
-            # Si el filtro op_number existe, chequeamos
-            if op_number:
-                if op_number.upper() not in advertising_numbers:
-                    continue  # saltamos esta factura
-
             result.append({
                 "invoice_id": inv.invoice_id,
                 "invoice_number": inv.invoice_number,
@@ -38,7 +23,6 @@ class InvoiceDataAPI(MethodView):
                 "bill_to": inv.bill_to,
                 "currency": inv.currency,
                 "payment_terms": inv.payment_terms,
-                "advertising_numbers": advertising_numbers,
                 "items": inv.items,
                 "custom_fields": inv.custom_fields,
                 "company_id": inv.company_id
