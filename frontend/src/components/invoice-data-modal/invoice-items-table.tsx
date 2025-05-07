@@ -37,7 +37,6 @@ export function InvoiceItemsTable({ items, currency, className }: InvoiceItemsTa
                 <TableHeader className="bg-muted/50 sticky top-0 z-10">
                     <TableRow>
                         <TableHead className="w-[60%] min-w-[250px]">Descripción</TableHead>
-                        <TableHead className="text-right">Números OP</TableHead>
                         <TableHead className="text-right min-w-[120px]">Monto</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -48,17 +47,6 @@ export function InvoiceItemsTable({ items, currency, className }: InvoiceItemsTa
                                 {item.description || "-"}
                             </TableCell>
                             <TableCell className="text-right align-top py-2 pr-1">
-                                {item.advertising_numbers && item.advertising_numbers.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1 justify-end">
-                                        {item.advertising_numbers.map(num => (
-                                            <Badge key={num} variant="outline" className="text-xs font-mono">{num}</Badge>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <span className="text-xs text-muted-foreground">N/A</span>
-                                )}
-                            </TableCell>
-                            <TableCell className="text-right align-top py-2 font-mono">
                                 {formatCurrency(item.amount, currency)}
                             </TableCell>
                         </TableRow>

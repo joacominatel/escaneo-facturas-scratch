@@ -40,7 +40,6 @@ export interface InvoiceStatusSummary {
 export interface ProcessedInvoiceItem {
   description: string
   amount: number
-  advertising_numbers: string[]
 }
 
 // Structure for a processed invoice's data (GET /api/invoices/data)
@@ -52,7 +51,6 @@ export interface ProcessedInvoiceData {
   bill_to: string
   currency: string
   payment_terms?: string // Optional based on documentation example
-  advertising_numbers: string[]
   items: ProcessedInvoiceItem[]
 }
 

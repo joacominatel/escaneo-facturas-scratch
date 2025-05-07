@@ -80,21 +80,16 @@ export async function fetchInvoiceDetails(invoiceId: number): Promise<InvoiceDet
  * Use `fetchInvoiceHistory` to get a list of all invoices regardless of status.
  * @param page Page number (default 1)
  * @param perPage Items per page (default 10)
- * @param opNumber Optional filter by OP number
  * @returns Promise with paginated processed invoice data
  */
 export async function fetchInvoiceData(
   page = 1, 
   perPage = 10, 
-  opNumber?: string
 ): Promise<PaginatedInvoices<ProcessedInvoiceData>> {
   try {
     const params = new URLSearchParams()
     params.append("page", String(page))
     params.append("per_page", String(perPage))
-    if (opNumber) {
-      params.append("op_number", opNumber)
-    }
     
     // According to docs, this endpoint returns data for *processed* invoices
     // The structure matches PaginatedInvoices<ProcessedInvoiceData>

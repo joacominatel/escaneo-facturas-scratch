@@ -22,7 +22,6 @@ import { AlertTriangle, Edit } from "lucide-react";
 import { useInvoiceDetails } from "@/hooks/use-invoice-details";
 import { useInvoicePreviewEdit } from '@/hooks/use-invoice-preview-edit';
 import { InvoiceDetailsContent } from "./invoice-details-content";
-import { AdvertisingNumbersDisplay } from "./advertising-numbers-display";
 import { InvoiceItemsTable } from './invoice-items-table';
 import { EditableInvoiceItemsTable } from './editable-invoice-items-table';
 import { EditActionBar } from './edit-action-bar';
@@ -144,9 +143,6 @@ export function InvoiceDataModal({ invoiceId, isOpen, onOpenChange, trigger, onE
                                 </Badge>
                             )}
                         </div>
-                        {!isLoading && displayItems && (
-                            <AdvertisingNumbersDisplay items={displayItems} className="mt-1" />
-                        )}
                     </DialogHeader>
 
                     <div className="flex-grow overflow-y-auto px-6 pt-4 pb-6 custom-scrollbar">

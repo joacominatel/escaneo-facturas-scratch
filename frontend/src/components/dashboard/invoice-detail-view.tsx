@@ -145,7 +145,6 @@ export function InvoiceDetailView({ invoiceId, onClose, onActionComplete, classN
 
   const invoiceData = invoice.preview || invoice.final_data || {}
   const items = invoiceData.items || []
-  const operationCodes = invoiceData.operation_codes || []
 
   // Determine which actions are available based on status
   const canConfirm = invoice.status === "waiting_validation"
@@ -207,7 +206,6 @@ export function InvoiceDetailView({ invoiceId, onClose, onActionComplete, classN
           <Tabs defaultValue="items">
             <TabsList>
               <TabsTrigger value="items">Items ({items.length})</TabsTrigger>
-              <TabsTrigger value="operations">Operation Codes ({operationCodes.length})</TabsTrigger>
             </TabsList>
             <TabsContent value="items" className="mt-4">
               <div className="rounded-md border overflow-x-auto">
@@ -215,7 +213,6 @@ export function InvoiceDetailView({ invoiceId, onClose, onActionComplete, classN
                   <TableHeader>
                     <TableRow>
                       <TableHead>Description</TableHead>
-                      <TableHead>Operation Code</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -224,11 +221,6 @@ export function InvoiceDetailView({ invoiceId, onClose, onActionComplete, classN
                       items.map((item: any, index: number) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{item.description}</TableCell>
-                          <TableCell>
-                            {item.advertising_numbers && item.advertising_numbers.length > 0
-                              ? item.advertising_numbers.join(", ")
-                              : "-"}
-                          </TableCell>
                           <TableCell className="text-right">
                             {formatCurrency(item.amount || 0, invoiceData.currency || "USD")}
                           </TableCell>
@@ -238,36 +230,6 @@ export function InvoiceDetailView({ invoiceId, onClose, onActionComplete, classN
                       <TableRow>
                         <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">
                           No items found
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-            <TabsContent value="operations" className="mt-4">
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Operation Code</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {operationCodes.length > 0 ? (
-                      operationCodes.map((op: any, index: number) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{op.code}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(op.amount || 0, invoiceData.currency || "USD")}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={2} className="text-center py-4 text-muted-foreground">
-                          No operation codes found
                         </TableCell>
                       </TableRow>
                     )}
