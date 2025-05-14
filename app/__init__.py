@@ -1,17 +1,7 @@
 from flask import Flask, request
 from app.core.config import Config
 from app.core.extensions import init_extensions, db, socketio
-from app.api.invoice_api import invoice_bp
-from app.api.invoice_confirm_api import invoice_confirm_bp
-from app.api.invoice_reject_api import invoice_reject_bp
-from app.api.invoice_list_api import invoice_list_bp
-from app.api.invoice_retry_api import invoice_retry_bp
-from app.api.invoice_status_summary_api import invoice_summary_bp
-from app.api.invoice_data_api import invoice_data_bp
-from app.api.invoice_download_api import invoice_download_bp
-from app.api.invoice_preview_update_api import invoice_preview_update_bp
-from app.api.company_api import company_bp
-from app.api.invoice_trends_api import invoice_trends_bp
+from app.api import *
 
 def create_app():
     app = Flask(__name__)
@@ -47,7 +37,7 @@ def create_app():
         db.session.commit()
 
     # Registrar Blueprints
-    app.register_blueprint(invoice_bp, url_prefix='/api/invoices')
+    app.register_blueprint(invoice_bp, url_prefix='/api')
     app.register_blueprint(invoice_confirm_bp)
     app.register_blueprint(invoice_reject_bp)
     app.register_blueprint(invoice_list_bp)
